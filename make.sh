@@ -1,8 +1,16 @@
 make clean
-make seq CASE=1 DIM=128
+make METHOD=1 CASE=1 DIM=128
 make clear
-make seq CASE=1 DIM=512
+make METHOD=1 CASE=1 DIM=512
 make clear
-make seq CASE=2 DIM=128
+make METHOD=1 CASE=2 DIM=128
 make clear
-make seq CASE=2 DIM=512
+make METHOD=1 CASE=2 DIM=512
+make clear
+make METHOD=2 CASE=1 DIM=128
+make clear
+make METHOD=2 CASE=1 DIM=512
+make clear
+make METHOD=2 CASE=2 DIM=128
+make clear
+make METHOD=2 CASE=2 DIM=512
