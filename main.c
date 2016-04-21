@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <omp.h>
 
 #define _XOPEN_SOURCE 600
 
@@ -54,6 +55,7 @@ float *compute_eucl (unsigned iterations)
 {
   for (unsigned i = 0; i < iterations; i++)
     {
+#pragma omp parallel for collapse(2)
       for (int y = 1; y < DIM-1; y++)
 	{
 	  for (int x = 1; x < DIM-1; x++)
@@ -102,6 +104,7 @@ float *compute_naive (unsigned iterations)
 int main (int argc, char **argv)
 {
   printf("DIM %d CASE %d\n", DIM, CASE);
+  omp_get_threads_num();
 
   sand_init ();
 
