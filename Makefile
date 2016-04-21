@@ -3,6 +3,7 @@ ARCH            := $(shell uname -s | tr a-z A-Z)
 
 PROG	:=	sable
 
+CC	= gcc
 CFLAGS	:=	-g -O3 -std=c99 -Wno-deprecated-declarations
 ifeq ($(ARCH),DARWIN)
 CFLAGS	+=	-I /opt/local/include

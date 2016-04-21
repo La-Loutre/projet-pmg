@@ -13,9 +13,9 @@
 #define MAX_HEIGHT  128
 #include <math.h>
 
-unsigned ocean[DIM][DIM];
+unsigned sable[DIM][DIM];
 
-// vecteur de pixel renvoyé par compute  
+// vecteur de pixel renvoyé par compute
 struct {
   float R, G, B;
 } couleurs[DIM][DIM];
@@ -23,17 +23,17 @@ struct {
 // callback
 unsigned get (unsigned x, unsigned y)
 {
-  return ocean[y][x];
+  return sable[y][x];
 }
 
 // Tas de sable initial
 static void sable_init ()
 {
-  unsigned dmax2 = MAX_HEIGHT; 
+  unsigned dmax2 = MAX_HEIGHT;
 
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
-      ocean[y][x] = MAX_HEIGHT / 4;
+      sable[y][x] = MAX_HEIGHT / 4;
     }
 }
 
@@ -48,7 +48,7 @@ float *compute (unsigned iterations)
 	{
 	  int v =  MAX_HEIGHT * (1+sin( 4* (y+step) * 3.14/ DIM)) / 4;
 	  for (int x = 0; x < DIM; x++)
-	    ocean[y][x]  = v;
+	    sable[y][x]  = v;
 	}
     }
   return DYNAMIC_COLORING; // altitude-based coloring
@@ -59,7 +59,7 @@ float *compute (unsigned iterations)
 int main (int argc, char **argv)
 {
   sable_init ();
-  
+
   display_init (argc, argv,
 		DIM,              // dimension ( = x = y) du tas
 		MAX_HEIGHT,       // hauteur maximale du tas
