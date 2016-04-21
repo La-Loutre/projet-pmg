@@ -15,7 +15,7 @@
 
 unsigned ocean[DIM][DIM];
 
-// vecteur de pixel renvoyé par compute  
+// vecteur de pixel renvoyé par compute
 struct {
   float R, G, B;
 } couleurs[DIM][DIM];
@@ -29,7 +29,7 @@ unsigned get (unsigned x, unsigned y)
 // Tas de sable initial
 static void sable_init ()
 {
-  unsigned dmax2 = MAX_HEIGHT; 
+  unsigned dmax2 = MAX_HEIGHT;
 
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
@@ -59,7 +59,7 @@ float *compute (unsigned iterations)
 int main (int argc, char **argv)
 {
   sable_init ();
-  
+
   display_init (argc, argv,
 		DIM,              // dimension ( = x = y) du tas
 		MAX_HEIGHT,       // hauteur maximale du tas

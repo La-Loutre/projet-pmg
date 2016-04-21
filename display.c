@@ -25,7 +25,7 @@
 #define PIX_SURFACE
 
 #ifdef PIX_SURFACE
-unsigned flatten_surface = 0;
+unsigned flatten_surface = 1;
 #endif
 
 GLfloat *s_vbo_vertex;
@@ -53,7 +53,7 @@ float min_ext[3] = {0.0, 0.0, 0.0},
   max_ext[3] = {EXTENT, EXTENT, EXTENT};
 
 GLuint glutWindowHandle = 0;
-GLdouble fovy, aspect, near_clip, far_clip;  
+GLdouble fovy, aspect, near_clip, far_clip;
                           /* parameters for gluPerspective() */
 GLfloat near;
 
@@ -141,7 +141,7 @@ static void add_sand_color (GLfloat x, GLfloat y, GLfloat z)
 }
 
 static void add_sand_vertice (GLfloat x, GLfloat y, GLfloat z, int set_color)
-{  
+{
   s_vbo_vertex[s_vi++] = x;
 #ifdef PIX_SURFACE
   s_vbo_vertex[s_vi++] = (flatten_surface ? 0 : y);
@@ -242,7 +242,7 @@ void sand_surface_build (void)
 void buildVBO()
 {
   sand_surface_build ();
-  
+
   glGenBuffers(1, &s_vbocid);
   glBindBuffer(GL_ARRAY_BUFFER, s_vbocid);
   glColorPointer(3, GL_FLOAT, 0, 0);
@@ -267,9 +267,9 @@ static void render_sand_surface (void)
 {
   glEnableClientState(GL_COLOR_ARRAY);
   glEnableClientState(GL_VERTEX_ARRAY);
-  
+
   glDrawElements(GL_QUADS, s_indexes, GL_UNSIGNED_INT, 0);
-  
+
   glDisableClientState(GL_COLOR_ARRAY);
   glDisableClientState(GL_VERTEX_ARRAY);
 }
@@ -297,15 +297,15 @@ void display_draw_scene() {
       rotate_y += 360.0;
 
     p = rotate_y + 180.0; p = p/360.0 * 2 * M_PI;
-    
+
     rotate_x += 15.0 * (sin(p) - sin(q));
 
     true_redisplay = 1;
   }
-  
+
   if(true_redisplay) {
     glLoadIdentity();
- 
+
    /* Define viewing transformation */
     gluLookAt((GLdouble)eye[0],(GLdouble)eye[1],(GLdouble)eye[2],
 	      (GLdouble)center[0],(GLdouble)center[1],(GLdouble)center[2],
@@ -335,7 +335,7 @@ void display_draw_scene() {
   if(texture) {
     glEnable(GL_TEXTURE_2D);     // Enable 2D texturing
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SAND_DIM, SAND_DIM, 
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, SAND_DIM, SAND_DIM,
 		 0, GL_RGB , GL_FLOAT, texture);
 
     glBegin(GL_QUADS);
@@ -395,12 +395,12 @@ void printFPS()
     }
 
   gettimeofday(&now,NULL);
-  
+
   if ( nbFrames > 0 && TIME_DIFF(lastTime,now) >= 1000000 ){ // If last prinf() was more than 1 sec ago
     // printf and reset timer
     printf("\r %.1f ms/frame Compute Time %.3f ms/frame ",
 	   (TIME_DIFF(lastTime,now))/(double)(nbFrames*1000),computeTime/(double)(nbFrames*1000) );
-    printf("%d iterations à la fois", iterations[nbIterations]);
+    printf("%d iterations à la fois\n", iterations[nbIterations]);
     fflush(stdout);
     nbFrames = 0;
     computeTime = 0;
@@ -421,7 +421,7 @@ void idle(void)
   float *colors;
   struct timeval now;
   static int firstCall = 1;
-  
+
   printFPS();
 
   if(!keepCool)
@@ -447,34 +447,34 @@ void idle(void)
       }
 #else
       sand_surface_refresh (colors == DYNAMIC_COLORING);
-      
+
       if (colors) {
 	// Refresh colors
 	glBindBuffer(GL_ARRAY_BUFFER, s_vbocid);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, s_vertices*3*sizeof(float),
 			(colors == DYNAMIC_COLORING) ? s_vbo_color : colors);
-	
+
 	texture = (colors == DYNAMIC_COLORING) ? s_vbo_color : colors;
       }
 #endif
-      
+
       // Refresh vertices
       glBindBuffer(GL_ARRAY_BUFFER, s_vbovid);
       glBufferSubData(GL_ARRAY_BUFFER, 0, s_vertices*3*sizeof(float), s_vbo_vertex);
-      
-      
+
+
       gettimeofday (&now,NULL);
       int timediff = TIME_DIFF(lastDisplayTimeval,now);
       if (timediff>=(periods[displayPeriod]) || firstCall )
 	{
 	  firstCall = 0;
-	  lastDisplayTimeval = now; 
+	  lastDisplayTimeval = now;
 	  glutPostRedisplay ();
 	}
       else
 	{
 	  keepCool = 1;
-	  //	  printf("displayPeriod-timediff  %d \n",(periods[displayPeriod]-timediff)/1000); 
+	  //	  printf("displayPeriod-timediff  %d \n",(periods[displayPeriod]-timediff)/1000);
 	  glutTimerFunc((1000+periods[displayPeriod]-timediff)/1000, updateDisplay,0);
 	}
     }
@@ -504,7 +504,7 @@ void idle(void)
   /* get diagonal and average distance of extent */
   for (i=0; i<3; i++)
     dif_ext[i] = max_ext[i] - min_ext[i];
-  
+
   dis = 0.0;
   for (i = 0; i < 3; i++)
     dis = MAX(dis, dif_ext[i]);
@@ -527,7 +527,7 @@ void idle(void)
   near_clip = (GLdouble) (0.5 * near);
   far_clip = (GLdouble) (2.0 * (dis + 0.5 * dif_ext[2]));
 
-  // Field of view 
+  // Field of view
   fovy = (GLdouble) (0.5 * dif_ext[1] / near);
   fovy = (GLdouble) (2 * atan ((double) fovy) / M_PI * 180.0);
 
@@ -563,7 +563,7 @@ void appKeyboard(unsigned char key, int x, int y)
     case 'F': flatten_surface = 1 - flatten_surface; break;
 #endif
     case '\033': // escape quits
-    case '\015': // Enter quits    
+    case '\015': // Enter quits
     case 'Q':    // Q quits
     case 'q':    // q (or escape) quits
       // Cleanup up and quit
@@ -644,7 +644,7 @@ void display_init (int argc, char **argv, unsigned dim, unsigned max_height,
   SAND_MAX_HEIGHT = max_height;
   get_func_ptr = get_func;
   compute_func_ptr = compute_func;
-  
+
   glutInit(&argc, argv);
 
   /* Initialize arrays of vertices and triangles */
