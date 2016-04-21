@@ -1,17 +1,18 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
 
 #define _XOPEN_SOURCE 600
 
 #include "display.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-
-//////////////////////////////////////////////////////////////////////////
-// Tas de sable "fake" (juste pour tester)
-
+#ifndef DIM
 #define DIM 128
+#endif // DIM
+
+#ifndef MAX_HEIGHT
 #define MAX_HEIGHT 4
-#include <math.h>
+#endif // MAX_HEIGHT
 
 unsigned sand[DIM][DIM];
 
@@ -20,23 +21,31 @@ struct {
   float R, G, B;
 } couleurs[DIM][DIM];
 
-// callback
 unsigned get (unsigned x, unsigned y)
 {
   return sand[y][x];
 }
 
-// Tas de sand initial
+#if CASE == 1
 static void sand_init ()
 {
-  unsigned dmax2 = MAX_HEIGHT;
+  for (int y = 0; y < DIM; y++)
+    for (int x = 0; x < DIM; x++) {
+      sand[y][x] = MAX_HEIGHT + 1;
+    }
+}
+#endif // CASE == 0
 
+#if CASE == 2
+static void sand_init ()
+{
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
       sand[y][x] = 0;
     }
-  sand[DIM/2][DIM/2] = 1000000;
+  sand[DIM/2][DIM/2] = 10000;
 }
+#endif // CASE == 1
 
 void afficher()
 {
@@ -49,27 +58,7 @@ void afficher()
   }
 }
 
-/*
-// callback
-float *compute (unsigned iterations)
-{
-  static int step = 0;
-  for (unsigned i = 0; i < iterations; i++)
-    {
-      step++;
-      for (int y = 0; y < DIM; y++)
-	{
-	  int v =  MAX_HEIGHT * (1+sin( 4* (y+step) * 3.14/ DIM)) / 4;
-	  for (int x = 0; x < DIM; x++)
-	    sand[y][x]  = v;
-	}
-    }
-  return DYNAMIC_COLORING; // altitude-based coloring
-  // return couleurs;
-}
-*/
-
-float *compute (unsigned iterations)
+float *compute_eucl (unsigned iterations)
 {
   for (unsigned i = 0; i < iterations; i++)
     {
@@ -94,6 +83,29 @@ float *compute (unsigned iterations)
   return DYNAMIC_COLORING;
 }
 
+float *compute_naive (unsigned iterations)
+{
+  for (unsigned i = 0; i < iterations; i++)
+    {
+      for (int y = 1; y < DIM-1; y++)
+	{
+	  for (int x = 1; x < DIM-1; x++)
+	    if(sand[y][x] >= 4) {
+	      sand[y][x] -= 4;
+	      if (y != 1)
+		sand[y-1][x] += 1;
+	      if (y != DIM-2)
+	      	sand[y+1][x] += 1;
+	      if (x != 1)
+	      	sand[y][x-1] += 1;
+	      if (x != DIM-2)
+	      	sand[y][x+1] += 1;
+	    }
+	}
+    }
+  return DYNAMIC_COLORING;
+}
+
 
 int main (int argc, char **argv)
 {
@@ -103,7 +115,7 @@ int main (int argc, char **argv)
 		DIM,              // dimension ( = x = y) du tas
 		MAX_HEIGHT,       // hauteur maximale du tas
 		get,              // callback func
-		compute);         // callback func
+		compute_eucl);    // callback func
   //  afficher();
   return 0;
 }

@@ -54,7 +54,7 @@ float min_ext[3] = {0.0, 0.0, 0.0},
 
 GLuint glutWindowHandle = 0;
 GLdouble fovy, aspect, near_clip, far_clip;
-                          /* parameters for gluPerspective() */
+/* parameters for gluPerspective() */
 GLfloat near;
 
 // mouse controls
@@ -306,7 +306,7 @@ void display_draw_scene() {
   if(true_redisplay) {
     glLoadIdentity();
 
-   /* Define viewing transformation */
+    /* Define viewing transformation */
     gluLookAt((GLdouble)eye[0],(GLdouble)eye[1],(GLdouble)eye[2],
 	      (GLdouble)center[0],(GLdouble)center[1],(GLdouble)center[2],
 	      (GLdouble)up[0],(GLdouble)up[1],(GLdouble)up[2]);
@@ -365,8 +365,8 @@ extern void sable_animate (unsigned iterations);
 volatile int keepCool = 0;
 
 
-#define TIME_DIFF(t1, t2) \
-    ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
+#define TIME_DIFF(t1, t2)						\
+  ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
 
 
 
@@ -377,7 +377,7 @@ int periods[]={2000000,1000000,500000,250000,100000,50000,10000};
 #define MaxDisplayPeriod (sizeof(periods)/sizeof(periods[0]))
 volatile int displayPeriod = MaxDisplayPeriod ; // 10 fps
 
-volatile int nbIterations = 0;
+volatile int nbIterations = 5;
 int iterations[]={1,2,5,10,25,50,100,250,500,1000,10000};
 #define MaxNbIterations (sizeof(iterations)/sizeof(iterations[0]))
 
@@ -396,7 +396,8 @@ void printFPS()
 
   gettimeofday(&now,NULL);
 
-  if ( nbFrames > 0 && TIME_DIFF(lastTime,now) >= 1000000 ){ // If last prinf() was more than 1 sec ago
+  if ( nbFrames > 0 && TIME_DIFF(lastTime,now) >= 1000000 ){
+    // If last prinf() was more than 1 sec ago
     // printf and reset timer
     printf("\r %.1f ms/frame Compute Time %.3f ms/frame ",
 	   (TIME_DIFF(lastTime,now))/(double)(nbFrames*1000),computeTime/(double)(nbFrames*1000) );
@@ -479,9 +480,9 @@ void idle(void)
 	}
     }
 }
-  void initView (float *min_ext, float *max_ext)
-  {
-    GLfloat light_diffuse[]   = {1.0, 1.0, 1.0, 1.0};
+void initView (float *min_ext, float *max_ext)
+{
+  GLfloat light_diffuse[]   = {1.0, 1.0, 1.0, 1.0};
   GLfloat light_position[] = {0.5, 0.5, 1.0, 0.0};
   float dif_ext[3];
   int i;
@@ -549,8 +550,8 @@ void appDestroy()
 
 void appKeyboard(unsigned char key, int x, int y)
 {
-    //this way we can exit the program cleanly
-    switch(key)
+  //this way we can exit the program cleanly
+  switch(key)
     {
     case '<' : translate_z -= 0.1; true_redisplay = 1; glutPostRedisplay(); break;
     case '>' : translate_z += 0.1; true_redisplay = 1; glutPostRedisplay(); break;
@@ -580,8 +581,8 @@ void appSpecialKeyboard(int key, int x, int y)
     case GLUT_KEY_UP:
       if (displayPeriod < MaxDisplayPeriod)
 	displayPeriod++;
-	  printf ("Setting display period to %d \n", displayPeriod);
-	  break;
+      printf ("Setting display period to %d \n", displayPeriod);
+      break;
     case GLUT_KEY_DOWN:
       if (displayPeriod > 0)
 	displayPeriod--;
@@ -604,15 +605,15 @@ void appSpecialKeyboard(int key, int x, int y)
 
 void appMouse(int button, int state, int x, int y)
 {
-    //handle mouse interaction for rotating/zooming the view
-    if (state == GLUT_DOWN) {
-        mouse_buttons |= 1<<button;
-    } else if (state == GLUT_UP) {
-        mouse_buttons = 0;
-    }
+  //handle mouse interaction for rotating/zooming the view
+  if (state == GLUT_DOWN) {
+    mouse_buttons |= 1<<button;
+  } else if (state == GLUT_UP) {
+    mouse_buttons = 0;
+  }
 
-    mouse_old_x = x;
-    mouse_old_y = y;
+  mouse_old_x = x;
+  mouse_old_y = y;
 }
 
 void appMotion(int x, int y)
@@ -668,7 +669,7 @@ void display_init (int argc, char **argv, unsigned dim, unsigned max_height,
 
   glutKeyboardFunc(appKeyboard);
   glutSpecialFunc(appSpecialKeyboard);
- glutMouseFunc(appMouse);
+  glutMouseFunc(appMouse);
   glutMotionFunc(appMotion);
 
   buildVBO();
