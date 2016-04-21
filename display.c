@@ -411,7 +411,6 @@ void printFPS()
 
 void updateDisplay(int i)
 {
-  //  printf("ouf!\n");
   keepCool = 0;
   gettimeofday (&lastDisplayTimeval,NULL);
   glutPostRedisplay();
@@ -553,22 +552,37 @@ void appKeyboard(unsigned char key, int x, int y)
   //this way we can exit the program cleanly
   switch(key)
     {
-    case '<' : translate_z -= 0.1; true_redisplay = 1; glutPostRedisplay(); break;
-    case '>' : translate_z += 0.1; true_redisplay = 1; glutPostRedisplay(); break;
+    case '<' :
+      translate_z -= 0.1; true_redisplay = 1;
+      glutPostRedisplay();
+      break;
+    case '>' :
+      translate_z += 0.1;
+      true_redisplay = 1;
+      glutPostRedisplay();
+      break;
     case 'r':
-    case 'R': camera_rotate = 1 - camera_rotate; break;
+    case 'R':
+      camera_rotate = 1 - camera_rotate;
+      break;
     case 's':
-    case 'S': SAND_MAX_HEIGHT = max_value; printf ("Setting MAX_HEIGHT to %d\n", max_value); break;
+    case 'S':
+      SAND_MAX_HEIGHT = max_value;
+      printf ("Setting MAX_HEIGHT to %d\n", max_value);
+      break;
 #ifdef PIX_SURFACE
     case 'f':
-    case 'F': flatten_surface = 1 - flatten_surface; break;
+    case 'F':
+      flatten_surface = 1 - flatten_surface;
+      break;
 #endif
     case '\033': // escape quits
     case '\015': // Enter quits
     case 'Q':    // Q quits
     case 'q':    // q (or escape) quits
       // Cleanup up and quit
-      appDestroy();     break;
+      appDestroy();
+      break;
     }
 }
 

@@ -6,14 +6,6 @@
 
 #include "display.h"
 
-#ifndef DIM
-#define DIM 128
-#endif // DIM
-
-#ifndef MAX_HEIGHT
-#define MAX_HEIGHT 4
-#endif // MAX_HEIGHT
-
 unsigned sand[DIM][DIM];
 
 // vecteur de pixel renvoyé par compute
@@ -43,7 +35,7 @@ static void sand_init ()
     for (int x = 0; x < DIM; x++) {
       sand[y][x] = 0;
     }
-  sand[DIM/2][DIM/2] = 10000;
+  sand[DIM/2][DIM/2] = 100000;
 }
 #endif // CASE == 1
 
@@ -109,6 +101,8 @@ float *compute_naive (unsigned iterations)
 
 int main (int argc, char **argv)
 {
+  printf("DIM %d CASE %d\n", DIM, CASE);
+
   sand_init ();
 
   display_init (argc, argv,
@@ -116,6 +110,8 @@ int main (int argc, char **argv)
 		MAX_HEIGHT,       // hauteur maximale du tas
 		get,              // callback func
 		compute_eucl);    // callback func
-  //  afficher();
+
+  afficher();
+
   return 0;
 }

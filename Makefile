@@ -1,13 +1,13 @@
-DIM ?= 128
-MAX_HEIGHT ?= 4
+DIM?= 128
+MAX_HEIGHT?= 4
+CASE?= 1
 
-ARCH            := $(shell uname -s | tr a-z A-Z)
-
-PROG	:=	sable
-
-CC	= gcc
+ARCH := $(shell uname -s | tr a-z A-Z)
+PROG :=	sandpiles
+CC = gcc
 CFLAGS := -g -O3 -std=c99 -Wno-deprecated-declarations -D DIM=$(DIM)	\
--D MAX_HEIGHT=$(MAX_HEIGHT)
+-D MAX_HEIGHT=$(MAX_HEIGHT) -D CASE=$(CASE)
+
 ifeq ($(ARCH),DARWIN)
 CFLAGS	+=	-I /opt/local/include
 LDFLAGS	+=	-L /opt/local/include
@@ -16,25 +16,20 @@ else
 LDLIBS		:= -lOpenCL -lGL -lGLU -lglut -lm
 endif
 
-.phony: default clean
+.PHONY: default clean clear
 
-default: case1 case2
+default:
 
-case1: main_case1.o display.o
-	$(CC) -o $(PROG)-$@-$(DIM)-$(MAX_HEIGHT) $(LDFLAGS) $^ $(LDLIBS)
+seq: main.o display.o
+	$(CC) -o $(PROG)-$@-case$(CASE)-$(DIM)-$(MAX_HEIGHT) $(LDFLAGS) \
+$^ $(LDLIBS)
 
-case2: main_case2.o display.o
-	$(CC) -o $(PROG)-$@-$(DIM)-$(MAX_HEIGHT) $(LDFLAGS) $^ $(LDLIBS)
-
-main_case1.o: display.h
-	$(CC) -D CASE=1 $(CFLAGS) -c -o main_case1.o main.c
-
-main_case2.o: display.h
-	$(CC) -D CASE=2 $(CFLAGS) -c -o main_case2.o main.c
-
-#main.o: display.h
+main.o: display.h
 
 display.o: display.h
 
-clean:
-	rm -rf *.o $(PROG)-*
+clear:
+	rm -f *.o *~
+
+clean: clear
+	rm -f $(PROG)-*
