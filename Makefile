@@ -9,7 +9,7 @@ CFLAGS	+=	-I /opt/local/include
 LDFLAGS	+=	-L /opt/local/include
 LDLIBS	+=	-framework GLUT -framework OpenGL -framework OpenCL
 else
-LDLIBS		:= -lOpenCL -lGL -lGLU -lglut
+LDLIBS		:= -lOpenCL -lGL -lGLU -lglut -lm
 endif
 
 .phony: default clean
