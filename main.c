@@ -10,7 +10,7 @@
 // Tas de sable "fake" (juste pour tester)
 
 #define DIM 128
-#define MAX_HEIGHT  128
+#define MAX_HEIGHT 4
 #include <math.h>
 
 unsigned ocean[DIM][DIM];
@@ -33,10 +33,23 @@ static void sable_init ()
 
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
-      ocean[y][x] = MAX_HEIGHT / 4;
+      ocean[y][x] = 0;
     }
+  ocean[DIM/2][DIM/2] = 1000000;
 }
 
+void afficher()
+{
+  // NOTE: we don't print the edges
+  for(int i = 1; i < DIM-1; i++) {
+    for(int j = 1; j < DIM-1; j++) {
+      printf("%2d ", ocean[i][j]);
+    }
+    printf("\n");
+  }
+}
+
+/*
 // callback
 float *compute (unsigned iterations)
 {
@@ -54,6 +67,32 @@ float *compute (unsigned iterations)
   return DYNAMIC_COLORING; // altitude-based coloring
   // return couleurs;
 }
+*/
+
+float *compute (unsigned iterations)
+{
+  for (unsigned i = 0; i < iterations; i++)
+    {
+      for (int y = 1; y < DIM-1; y++)
+	{
+	  for (int x = 1; x < DIM-1; x++)
+	    if(ocean[y][x] >= 4) {
+	      int mod4 = ocean[y][x] % 4;
+	      int div4 = ocean[y][x] / 4;
+	      ocean[y][x] = mod4;
+	      if (y != 1)
+		ocean[y-1][x] += div4;
+	      if (y != DIM-2)
+	      	ocean[y+1][x] += div4;
+	      if (x != 1)
+	      	ocean[y][x-1] += div4;
+	      if (x != DIM-2)
+	      	ocean[y][x+1] += div4;
+	    }
+	}
+    }
+  return DYNAMIC_COLORING;
+}
 
 
 int main (int argc, char **argv)
@@ -65,6 +104,6 @@ int main (int argc, char **argv)
 		MAX_HEIGHT,       // hauteur maximale du tas
 		get,              // callback func
 		compute);         // callback func
-
+  //  afficher();
   return 0;
 }
