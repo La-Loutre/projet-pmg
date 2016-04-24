@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
@@ -7,21 +8,19 @@
 
 #include "display.h"
 
-unsigned sand[DIM][DIM];
-
 // vecteur de pixel renvoyé par compute
 struct {
   float R, G, B;
 } couleurs[DIM][DIM];
 
-unsigned get (unsigned x, unsigned y)
+unsigned get (unsigned x, unsigned y, sand_t sand)
 {
   return sand[y][x];
 }
 
 #if CASE == 1
 // on met du sable dans chaque case
-static void sand_init ()
+static void sand_init (sand_t sand)
 {
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
@@ -32,7 +31,7 @@ static void sand_init ()
 
 #if CASE == 2
 // on construit un seul gros tas de sable
-static void sand_init ()
+static void sand_init (sand_t sand)
 {
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
@@ -42,7 +41,7 @@ static void sand_init ()
 }
 #endif // CASE == 1
 
-void afficher()
+void afficher(sand_t sand)
 {
   // NOTE: we don't print the edges
   for(int i = 1; i < DIM-1; i++) {
@@ -53,101 +52,145 @@ void afficher()
   }
 }
 
-float *compute_eucl (unsigned iterations)
+bool check(sand_t res, sand_t sand)
 {
-  for (unsigned i = 0; i < iterations; i++)
-    {
-      for (int y = 1; y < DIM-1; y++)
-	{
-	  for (int x = 1; x < DIM-1; x++)
-	    if(sand[y][x] >= 4) {
-	      int mod4 = sand[y][x] % 4;
-	      int div4 = sand[y][x] / 4;
-	      sand[y][x] = mod4;
-	      if (y != 1)
-		sand[y-1][x] += div4;
-	      if (y != DIM-2)
-	      	sand[y+1][x] += div4;
-	      if (x != 1)
-	      	sand[y][x-1] += div4;
-	      if (x != DIM-2)
-	      	sand[y][x+1] += div4;
-	    }
-	}
+  for(int i = 0; i < DIM; i++) {
+    for(int j = 0; j < DIM; j++) {
+      if (res[i][j] != sand[i][j])
+	return false;
     }
+  }
+  return true;
+}
+
+float *iterate(compute_func_t compute_func,
+	       unsigned iterations,
+	       sand_t sand)
+{
+  for (unsigned i = 0; i < iterations; i++) {
+    if (compute_func(sand) == false)
+      break;
+  }
   return DYNAMIC_COLORING;
 }
 
-float *compute_naive (unsigned iterations)
+
+bool compute_eucl (sand_t sand)
 {
-  for (unsigned i = 0; i < iterations; i++)
+  int changement = false;
+  for (int y = 1; y < DIM-1; y++)
     {
-      for (int y = 1; y < DIM-1; y++)
-	{
-	  for (int x = 1; x < DIM-1; x++)
-	    if(sand[y][x] >= 4) {
-	      sand[y][x] -= 4;
-	      if (y != 1)
-		sand[y-1][x] += 1;
-	      if (y != DIM-2)
-	      	sand[y+1][x] += 1;
-	      if (x != 1)
-	      	sand[y][x-1] += 1;
-	      if (x != DIM-2)
-	      	sand[y][x+1] += 1;
-	    }
+      for (int x = 1; x < DIM-1; x++)
+	if(sand[y][x] >= 4) {
+	  changement = true;
+	  int mod4 = sand[y][x] % 4;
+	  int div4 = sand[y][x] / 4;
+	  sand[y][x] = mod4;
+	  if (y != 1)
+	    sand[y-1][x] += div4;
+	  if (y != DIM-2)
+	    sand[y+1][x] += div4;
+	  if (x != 1)
+	    sand[y][x-1] += div4;
+	  if (x != DIM-2)
+	    sand[y][x+1] += div4;
 	}
     }
-  return DYNAMIC_COLORING;
+  //  return DYNAMIC_COLORING;
+  return changement;
 }
 
-float *compute_omp (unsigned iterations)
+bool compute_naive (sand_t sand)
 {
-  for (unsigned i = 0; i < iterations; i++)
+  bool changement = false;
+  for (int y = 1; y < DIM-1; y++)
     {
-#pragma omp parallel for collapse(2) num_threads(4)
-      for (int y = 1; y < DIM-1; y++)
-	{
-	  for (int x = 1; x < DIM-1; x++)
-	    if(sand[y][x] >= 4) {
-	      sand[y][x] -= 4;
-	      if (y != 1)
-		sand[y-1][x] += 1;
-	      if (y != DIM-2)
-		sand[y+1][x] += 1;
-	      if (x != 1)
-		sand[y][x-1] += 1;
-	      if (x != DIM-2)
-		sand[y][x+1] += 1;
-	    }
+      for (int x = 1; x < DIM-1; x++)
+	if(sand[y][x] >= 4) {
+	  changement = true;
+	  sand[y][x] -= 4;
+	  if (y != 1)
+	    sand[y-1][x] += 1;
+	  if (y != DIM-2)
+	    sand[y+1][x] += 1;
+	  if (x != 1)
+	    sand[y][x-1] += 1;
+	  if (x != DIM-2)
+	    sand[y][x+1] += 1;
 	}
     }
-  return DYNAMIC_COLORING;
+  return changement;
+  //  return DYNAMIC_COLORING;
+}
+
+bool compute_omp (sand_t sand)
+{
+  bool changement = false;
+#pragma omp parallel reduction(||:changement)
+#pragma omp for collapse(2)
+  for (int y = 1; y < DIM-1; y++)
+    {
+      for (int x = 1; x < DIM-1; x++)
+	if(sand[y][x] >= 4) {
+	  changement = true;
+	  sand[y][x] -= 4;
+	  if (y != 1)
+	    sand[y-1][x] += 1;
+	  if (y != DIM-2)
+	    sand[y+1][x] += 1;
+	  if (x != 1)
+	    sand[y][x-1] += 1;
+	  if (x != DIM-2)
+	    sand[y][x+1] += 1;
+	}
+    }
+  return changement;
+  //  return DYNAMIC_COLORING;
 }
 
 
 int main (int argc, char **argv)
 {
-  printf("DIM %d CASE %d\n", DIM, CASE);
+  omp_set_num_threads(4);
+  printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
-  sand_init ();
+  unsigned **sand = malloc(sizeof(unsigned*) * DIM);
+  for(int i = 0; i < DIM; i++)
+    sand[i] = malloc(DIM * sizeof(unsigned));
+  unsigned **res = malloc(sizeof(unsigned*) * DIM);
+  for(int i = 0; i < DIM; i++)
+    res[i] = malloc(DIM * sizeof(unsigned));
+
+  sand_init (sand);
+  sand_init (res);
 
 #if METHOD == 1
   display_init (argc, argv,
-		DIM,              // dimension ( = x = y) du tas
-		MAX_HEIGHT,       // hauteur maximale du tas
-		get,              // callback func
-		compute_naive);   // callback func
+		DIM,
+		MAX_HEIGHT,
+		get,
+		iterate,
+		compute_eucl,
+		sand);
 #endif // METHOD seq
+
 #if METHOD == 2
   display_init (argc, argv,
-		DIM,              // dimension ( = x = y) du tas
-		MAX_HEIGHT,       // hauteur maximale du tas
-		get,              // callback func
-		compute_omp);     // callback func
+		DIM,
+		MAX_HEIGHT,
+		get,
+		iterate,
+		compute_omp,
+		sand);
 #endif // METHOD openmp
 
-  afficher();
+  /* while(compute_eucl(res)); */
+  /* while(compute_omp(sand)); */
+
+  /* if (check(res, sand)) */
+  /*   printf("OK\n"); */
+  /* else */
+  /*   printf("KO\n"); */
 
   return 0;
 }

@@ -74,7 +74,10 @@ float rotate_x = 0.0, rotate_y = 0.0;
 float translate_z = -1.f;
 
 get_func_t get_func_ptr;
+iterate_func_t iterate_func_ptr;
 compute_func_t compute_func_ptr;
+unsigned **sand_ptr;
+
 
 GLfloat *texture = NULL;
 
@@ -165,7 +168,7 @@ void sand_surface_refresh (int set_color)
   for (int y = 0; y < SAND_DIM; y++)
     for (int x = 0; x < SAND_DIM; x++) {
       GLfloat xv, yv, zv;
-      unsigned val = get_func_ptr (y, x) ;
+      unsigned val = get_func_ptr (y, x, sand_ptr) ;
 
       if (val > max_value)
 	max_value = val;
@@ -377,7 +380,7 @@ int periods[]={2000000,1000000,500000,250000,100000,50000,10000};
 #define MaxDisplayPeriod (sizeof(periods)/sizeof(periods[0]))
 volatile int displayPeriod = MaxDisplayPeriod ; // 10 fps
 
-volatile int nbIterations = 5;
+volatile int nbIterations = 10;
 int iterations[]={1,2,5,10,25,50,100,250,500,1000,10000};
 #define MaxNbIterations (sizeof(iterations)/sizeof(iterations[0]))
 
@@ -428,7 +431,9 @@ void idle(void)
     {
       struct timeval t1,t2;
       gettimeofday (&t1,NULL);
-      colors = compute_func_ptr (iterations[nbIterations]);
+      colors = iterate_func_ptr (compute_func_ptr,
+				 iterations[nbIterations],
+				 sand_ptr);
       gettimeofday (&t2,NULL);
       computeTime += TIME_DIFF(t1,t2);
       nbFrames++;
@@ -653,12 +658,16 @@ void appMotion(int x, int y)
 
 void display_init (int argc, char **argv, unsigned dim, unsigned max_height,
 		   get_func_t get_func,
-		   compute_func_t compute_func)
+		   iterate_func_t iterate_func,
+		   compute_func_t compute_func,
+		   sand_t sand)
 {
   SAND_DIM = dim;
   SAND_MAX_HEIGHT = max_height;
   get_func_ptr = get_func;
+  iterate_func_ptr = iterate_func;
   compute_func_ptr = compute_func;
+  sand_ptr = sand;
 
   glutInit(&argc, argv);
 
