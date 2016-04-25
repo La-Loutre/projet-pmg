@@ -87,7 +87,7 @@ float *iterate(compute_func_t compute_func,
 }
 
 
-bool compute_eucl (sand_t sand)
+static inline bool compute_eucl (sand_t sand)
 {
   int changement = false;
   for (int y = 1; y < DIM-1; y++)
@@ -108,7 +108,7 @@ bool compute_eucl (sand_t sand)
   return changement;
 }
 
-bool compute_naive (sand_t sand)
+static inline bool compute_naive (sand_t sand)
 {
   bool changement = false;
   for (int y = 1; y < DIM-1; y++)
@@ -127,7 +127,7 @@ bool compute_naive (sand_t sand)
   //  return DYNAMIC_COLORING;
 }
 
-bool compute_omp (sand_t sand)
+static inline bool compute_omp (sand_t sand)
 {
   bool changement = false;
 #pragma omp parallel reduction(||:changement)
