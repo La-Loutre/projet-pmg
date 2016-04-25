@@ -90,13 +90,15 @@ float *iterate(compute_func_t compute_func,
 bool compute_eucl (sand_t sand)
 {
   int changement = false;
-  for (int y = 1; y < DIM-1; y++)
+  int mod4;
+  int div4;
+  for (int y = 1; y < DIM-1; ++y)
     {
-      for (int x = 1; x < DIM-1; x++)
+      for (int x = 1; x < DIM-1; ++x)
 	if(sand[y][x] >= 4) {
 	  changement = true;
-	  int mod4 = sand[y][x] % 4;
-	  int div4 = sand[y][x] / 4;
+	  mod4 = sand[y][x] % 4;
+	  div4 = sand[y][x] / 4;
 	  sand[y][x] = mod4;
 	  if (y != 1)
 	    sand[y-1][x] += div4;
