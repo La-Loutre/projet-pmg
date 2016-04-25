@@ -70,8 +70,8 @@ void afficher(sand_t sand)
 
 bool check(sand_t res, sand_t sand)
 {
-  for(int i = 0; i < DIM; i++) {
-    for(int j = 0; j < DIM; j++) {
+  for(int i = 1; i < DIM-1; i++) {
+    for(int j = 1; j < DIM-1; j++) {
       if (res[i][j] != sand[i][j])
 	return false;
     }
@@ -113,40 +113,37 @@ static bool compute_eucl_chunk(sand_t sand)
   while(changement == true){
     changement = false;
     start_offset = DIM+1;
-  for(int chunck_iter=0; chunck_iter < nb_chunk; ++chunck_iter)
-    {
-      if (chunck[chunck_iter]){
-	chunck_stagned = 0;
-	for (int cursor = DIM*block_size*chunck_iter+start_offset;
-	     cursor < DIM*DIM && cursor < DIM*block_size*(chunck_iter+1)-1;
-	     ++cursor)
-	  {
-	    if(sand_one_array[cursor] >= 4) {
-	      changement = true;
-	      chunck_stagned = 1;
-	      mod4 = sand_one_array[cursor] % 4;
-	      div4 = sand_one_array[cursor] / 4;
-	      sand_one_array[cursor] = mod4;
-	      sand_one_array[cursor - DIM] += div4;
-	      chunck[(cursor - DIM )/(DIM*block_size)] = 1;
-	      sand_one_array[cursor + DIM] += div4;
-	      chunck[(cursor + DIM )/(DIM*block_size)] = 1;
-	      sand_one_array[cursor - 1] += div4;
-	      sand_one_array[cursor + 1] += div4;
-
+    for(int chunck_iter=0; chunck_iter < nb_chunk; ++chunck_iter)
+      {
+	if (chunck[chunck_iter]){
+	  chunck_stagned = 0;
+	  for (int cursor = DIM*block_size*chunck_iter+start_offset;
+	       cursor < DIM*DIM && cursor < DIM*block_size*(chunck_iter+1)-1;
+	       ++cursor)
+	    {
+	      if(sand_one_array[cursor] >= 4) {
+		changement = true;
+		chunck_stagned = 1;
+		mod4 = sand_one_array[cursor] % 4;
+		div4 = sand_one_array[cursor] / 4;
+		sand_one_array[cursor] = mod4;
+		sand_one_array[cursor - DIM] += div4;
+		chunck[(cursor - DIM )/(DIM*block_size)] = 1;
+		sand_one_array[cursor + DIM] += div4;
+		chunck[(cursor + DIM )/(DIM*block_size)] = 1;
+		sand_one_array[cursor - 1] += div4;
+		sand_one_array[cursor + 1] += div4;
+	      }
 	    }
-	  }
 
-	chunck[chunck_iter] = chunck_stagned;
+	  chunck[chunck_iter] = chunck_stagned;
+	}
+	start_offset = 0;
       }
-      start_offset = 0;
-
-    }
   }
   return changement;
-
-
 }
+
 static inline bool compute_eucl (sand_t sand)
 {
   int changement = false;
@@ -191,32 +188,39 @@ static inline bool compute_naive (sand_t sand)
 
 static inline bool compute_omp (sand_t sand)
 {
-  bool changement = true;
+  bool changement = false;
 #pragma omp parallel firstprivate(sand) shared(changement)
-  while(changement)
-    {
-      changement = false;
-      int nthreads = omp_get_num_threads();
-      unsigned mysand [DIM][DIM];
-      //memcpy(&mysand, &sand, DIM*DIM);
+  {
+    int nthreads = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    int chunk = DIM/nthreads;
+    unsigned mysand [DIM][DIM];
 
-      //#pragma omp scheduled(static, DIM/2) num_threads(2)
-      for (int y = 1; y < DIM-1; y++)
-	{
-	  //#pragma omp scheduled(static, DIM/2) num_threads(2)
-	  for (int x = 1; x < DIM-1; x++)
-	    if(mysand[y][x] >= 4) {
-	      changement = true;
-	      int mod4 = mysand[y][x] % 4;
-	      int div4 = mysand[y][x] / 4;
-	      mysand[y][x] = mod4;
-	      mysand[y-1][x] += div4;
-	      mysand[y+1][x] += div4;
-	      mysand[y][x-1] += div4;
-	      mysand[y][x+1] += div4;
-	    }
-	}
-    }
+    //do {
+    //memcpy(&mysand, &sand, DIM*DIM);
+    memset(&mysand, 0, DIM*DIM);
+
+#pragma omp for schedule(static, chunk) reduction(||:changement)
+    for (int y = 1; y < DIM-1; y++) {
+      for (int x = 1; x < DIM-1; x++) {
+	changement = 1;
+	int val = sand[y][x];
+	val %= 4;
+	val += sand[y-1][x] / 4
+	  + sand[y+1][x] / 4
+	  + sand[y][x-1] / 4
+	  + sand[y][x+1] / 4;
+	mysand[x][y] = val;
+      }
+    } // END PARALLEL FOR
+#pragma omp for schedule(static, chunk)
+    for (int y = 1; y < DIM-1; y++) {
+      for (int x = 1; x < DIM-1; x++) {
+	sand[x][y] = mysand[x][y];
+      }
+    } // END PARALLEL FOR
+      //} while(changement);
+  } // END PARALLEL
   return changement;
   //  return DYNAMIC_COLORING;
 }
@@ -242,6 +246,7 @@ static unsigned **create_sand_array(int size)
 int main (int argc, char **argv)
 {
   omp_set_num_threads(4);
+  printf("BINDING %d ", omp_get_proc_bind());
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
   unsigned **sand = create_sand_array(DIM);
@@ -301,7 +306,7 @@ int main (int argc, char **argv)
   sand_init (sand);
 
   gettimeofday (&t1, NULL);
-  compute_omp(sand);
+  while(compute_omp(sand));
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
   fprintf(stderr, "OMP %ld.%03ld ms ", compute_time/1000, compute_time%1000);

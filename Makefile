@@ -1,5 +1,6 @@
-MAKE=make -C src
-BINDIR=bin
+MAKE= make -C src
+BINDIR= bin
+
 all:
 	$(MAKE) clean
 	$(MAKE) METHOD=1 CASE=1 DIM=128
