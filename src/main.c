@@ -91,16 +91,74 @@ float *iterate(compute_func_t compute_func,
 }
 
 
+static bool compute_eucl_chunk(sand_t sand)
+{
+  // We do expect memory to be continuous
+  // doesn't work with naive sand
+  unsigned *sand_one_array = &sand[0][0];
+  bool changement = true;
+  int chunck_stagned;
+  int mod4;
+  int div4;
+  int block_size = 3;
+  int nb_chunk = DIM/block_size;
+  if (DIM % block_size != 0)
+    nb_chunk += 1;
+
+  int chunck[nb_chunk];
+  for (int i=0 ; i<nb_chunk;++i)
+    chunck[i] = 1;
+
+  int start_offset;
+  while(changement == true){
+    changement = false;
+    start_offset = DIM+1;
+  for(int chunck_iter=0; chunck_iter < nb_chunk; ++chunck_iter)
+    {
+      if (chunck[chunck_iter]){
+	chunck_stagned = 0;
+	for (int cursor = DIM*block_size*chunck_iter+start_offset;
+	     cursor < DIM*DIM && cursor < DIM*block_size*(chunck_iter+1)-1;
+	     ++cursor)
+	  {
+	    if(sand_one_array[cursor] >= 4) {
+	      changement = true;
+	      chunck_stagned = 1;
+	      mod4 = sand_one_array[cursor] % 4;
+	      div4 = sand_one_array[cursor] / 4;
+	      sand_one_array[cursor] = mod4;
+	      sand_one_array[cursor - DIM] += div4;
+	      chunck[(cursor - DIM )/(DIM*block_size)] = 1;
+	      sand_one_array[cursor + DIM] += div4;
+	      chunck[(cursor + DIM )/(DIM*block_size)] = 1;
+	      sand_one_array[cursor - 1] += div4;
+	      sand_one_array[cursor + 1] += div4;
+
+	    }
+	  }
+
+	chunck[chunck_iter] = chunck_stagned;
+      }
+      start_offset = 0;
+
+    }
+  }
+  return changement;
+
+
+}
 static inline bool compute_eucl (sand_t sand)
 {
   int changement = false;
-  for (int y = 1; y < DIM-1; y++)
+  int mod4;
+  int div4;
+  for (int y = 1; y < DIM-1; ++y)
     {
-      for (int x = 1; x < DIM-1; x++)
+      for (int x = 1; x < DIM-1; ++x)
 	if(sand[y][x] >= 4) {
 	  changement = true;
-	  int mod4 = sand[y][x] % 4;
-	  int div4 = sand[y][x] / 4;
+	  mod4 = sand[y][x] % 4;
+	  div4 = sand[y][x] / 4;
 	  sand[y][x] = mod4;
 	  sand[y-1][x] += div4;
 	  sand[y+1][x] += div4;
@@ -187,7 +245,7 @@ int main (int argc, char **argv)
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
   unsigned **sand = create_sand_array(DIM);
-  unsigned **ref = create_sand_array_naive(DIM);
+  unsigned **ref = create_sand_array(DIM);
 
   sand_init (sand);
   sand_init (ref);
@@ -198,7 +256,7 @@ int main (int argc, char **argv)
 		MAX_HEIGHT,
 		get,
 		iterate,
-		compute_eucl,
+		compute_eucl_chunk,
 		sand);
 #endif // METHOD seq
 
