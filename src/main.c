@@ -87,7 +87,7 @@ float *iterate(compute_func_t compute_func,
 }
 
 
-bool compute_eucl (sand_t sand)
+static inline bool compute_eucl (sand_t sand)
 {
   int changement = false;
   int mod4;
@@ -100,21 +100,17 @@ bool compute_eucl (sand_t sand)
 	  mod4 = sand[y][x] % 4;
 	  div4 = sand[y][x] / 4;
 	  sand[y][x] = mod4;
-	  if (y != 1)
-	    sand[y-1][x] += div4;
-	  if (y != DIM-2)
-	    sand[y+1][x] += div4;
-	  if (x != 1)
-	    sand[y][x-1] += div4;
- 	  if (x != DIM-2)
-	    sand[y][x+1] += div4;
+	  sand[y-1][x] += div4;
+	  sand[y+1][x] += div4;
+	  sand[y][x-1] += div4;
+	  sand[y][x+1] += div4;
 	}
     }
   //  return DYNAMIC_COLORING;
   return changement;
 }
 
-bool compute_naive (sand_t sand)
+static inline bool compute_naive (sand_t sand)
 {
   bool changement = false;
   for (int y = 1; y < DIM-1; y++)
@@ -123,21 +119,17 @@ bool compute_naive (sand_t sand)
 	if(sand[y][x] >= 4) {
 	  changement = true;
 	  sand[y][x] -= 4;
-	  if (y != 1)
-	    sand[y-1][x] += 1;
-	  if (y != DIM-2)
-	    sand[y+1][x] += 1;
-	  if (x != 1)
-	    sand[y][x-1] += 1;
-	  if (x != DIM-2)
-	    sand[y][x+1] += 1;
+	  sand[y-1][x] += 1;
+	  sand[y+1][x] += 1;
+	  sand[y][x-1] += 1;
+	  sand[y][x+1] += 1;
 	}
     }
   return changement;
   //  return DYNAMIC_COLORING;
 }
 
-bool compute_omp (sand_t sand)
+static inline bool compute_omp (sand_t sand)
 {
   bool changement = false;
 #pragma omp parallel reduction(||:changement)
@@ -148,14 +140,10 @@ bool compute_omp (sand_t sand)
 	if(sand[y][x] >= 4) {
 	  changement = true;
 	  sand[y][x] -= 4;
-	  if (y != 1)
-	    sand[y-1][x] += 1;
-	  if (y != DIM-2)
-	    sand[y+1][x] += 1;
-	  if (x != 1)
-	    sand[y][x-1] += 1;
-	  if (x != DIM-2)
-	    sand[y][x+1] += 1;
+	  sand[y-1][x] += 1;
+	  sand[y+1][x] += 1;
+	  sand[y][x-1] += 1;
+	  sand[y][x+1] += 1;
 	}
     }
   return changement;
@@ -185,11 +173,10 @@ int main (int argc, char **argv)
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
   unsigned **sand = create_sand_array(DIM);
-  unsigned **res = create_sand_array_naive(DIM);
-
+  unsigned **ref = create_sand_array_naive(DIM);
 
   sand_init (sand);
-  sand_init (res);
+  sand_init (ref);
 
 #if METHOD == SEQEUCL
   display_init (argc, argv,
@@ -212,32 +199,49 @@ int main (int argc, char **argv)
 #endif // METHOD openmp
 
 #if METHOD == TEST
+  int err = 0;
   struct timeval t1, t2;
   unsigned long seq_compute_time = 0;
   unsigned long compute_time = 0;
 
   gettimeofday (&t1, NULL);
-  while(compute_naive(res));
+  while(compute_naive(ref));
   gettimeofday (&t2, NULL);
   seq_compute_time = TIME_DIFF(t1, t2);
-  printf("REFERENCE %ld.%03ld ms\n", seq_compute_time/1000, seq_compute_time%1000);
+  printf("REFERENCE %ld.%03ld ms\n", seq_compute_time/1000,
+	 seq_compute_time%1000);
+
+
+  gettimeofday (&t1, NULL);
+  while(compute_eucl(sand));
+  gettimeofday (&t2, NULL);
+  compute_time = TIME_DIFF(t1,t2);
+  fprintf(stderr,"EUCL %ld.%03ld ms ", compute_time/1000, compute_time%1000);
+
+  if (check(ref, sand)) {
+    fprintf(stderr,"OK EUCL\n");
+  }
+  else {
+    fprintf(stderr,"KO EUCL\n");
+    err = -1;
+  }
+
 
   gettimeofday (&t1, NULL);
   while(compute_omp(sand));
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
-  printf("OMP %ld.%03ld ms\n", compute_time/1000, compute_time%1000);
+  fprintf(stderr, "OMP %ld.%03ld ms ", compute_time/1000, compute_time%1000);
 
-
-
-  int err = 0;
-  if (check(res, sand)) {
-      fprintf(stderr,"OK OMP\n");
-    }
+  if (check(ref, sand)) {
+    fprintf(stderr,"OK OMP\n");
+  }
   else {
-      fprintf(stderr,"KO OMP\n");
-      err = 1;
-    }
+    fprintf(stderr,"KO OMP\n");
+    err = -1;
+  }
+
+  fprintf(stderr,"\n");
   return err;
 #endif
   return 0;

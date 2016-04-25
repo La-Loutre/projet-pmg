@@ -30,4 +30,4 @@ clear:
 	rm -f *.o
 
 clean: clear
-	rm -f $(PROG)-* *~
+	rm -f $(BINDIR)/$(PROG)-* *~
