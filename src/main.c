@@ -4,6 +4,7 @@
 #include <math.h>
 #include <omp.h>
 #include <sys/time.h>
+#include <string.h>
 
 #include "display.h"
 
@@ -36,7 +37,10 @@ static void sand_init (sand_t sand)
 {
   for (int y = 0; y < DIM; y++)
     for (int x = 0; x < DIM; x++) {
-      sand[y][x] = MAX_HEIGHT + 1;
+      if (y == 0 || y == DIM-1 || x == 0 || x == DIM-1)
+	sand[y][x] = 0;
+      else
+	sand[y][x] = MAX_HEIGHT + 1;
     }
 }
 #endif
@@ -129,24 +133,36 @@ static inline bool compute_naive (sand_t sand)
 
 static inline bool compute_omp (sand_t sand)
 {
-  bool changement = false;
-#pragma omp parallel reduction(||:changement)
-#pragma omp for collapse(2)
-  for (int y = 1; y < DIM-1; y++)
+  bool changement = true;
+#pragma omp parallel firstprivate(sand) shared(changement)
+  while(changement)
     {
-      for (int x = 1; x < DIM-1; x++)
-	if(sand[y][x] >= 4) {
-	  changement = true;
-	  sand[y][x] -= 4;
-	  sand[y-1][x] += 1;
-	  sand[y+1][x] += 1;
-	  sand[y][x-1] += 1;
-	  sand[y][x+1] += 1;
+      changement = false;
+      int nthreads = omp_get_num_threads();
+      unsigned mysand [DIM][DIM];
+      //memcpy(&mysand, &sand, DIM*DIM);
+
+      //#pragma omp scheduled(static, DIM/2) num_threads(2)
+      for (int y = 1; y < DIM-1; y++)
+	{
+	  //#pragma omp scheduled(static, DIM/2) num_threads(2)
+	  for (int x = 1; x < DIM-1; x++)
+	    if(mysand[y][x] >= 4) {
+	      changement = true;
+	      int mod4 = mysand[y][x] % 4;
+	      int div4 = mysand[y][x] / 4;
+	      mysand[y][x] = mod4;
+	      mysand[y-1][x] += div4;
+	      mysand[y+1][x] += div4;
+	      mysand[y][x-1] += div4;
+	      mysand[y][x+1] += div4;
+	    }
 	}
     }
   return changement;
   //  return DYNAMIC_COLORING;
 }
+
 static unsigned **create_sand_array_naive(int size)
 {
   unsigned **sand_array = malloc(sizeof(unsigned*) * size);
@@ -223,10 +239,11 @@ int main (int argc, char **argv)
     fprintf(stderr,"KO EUCL\n");
     err = -1;
   }
-
+  compute_time = 0;
+  sand_init (sand);
 
   gettimeofday (&t1, NULL);
-  while(compute_omp(sand));
+  compute_omp(sand);
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
   fprintf(stderr, "OMP %ld.%03ld ms ", compute_time/1000, compute_time%1000);
@@ -238,9 +255,11 @@ int main (int argc, char **argv)
     fprintf(stderr,"KO OMP\n");
     err = -1;
   }
+  compute_time = 0;
+  sand_init (sand);
 
   fprintf(stderr,"\n");
-  return err;
+  return 0;
 #endif
   return 0;
 }
