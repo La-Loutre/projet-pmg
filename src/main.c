@@ -3,14 +3,20 @@
 #include <stdlib.h>
 #include <math.h>
 #include <omp.h>
+#include <sys/time.h>
+
+#include "display.h"
+
+#define _XOPEN_SOURCE 600
 
 #define TEST 0
 #define SEQEUCL 1
 #define PARAOMP 2
-#define _XOPEN_SOURCE 600
 #define FIVE_PILES 1
 #define ONE_PILE 2
-#include "display.h"
+
+#define TIME_DIFF(t1, t2)						\
+  ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
 
 // vecteur de pixel renvoyé par compute
 struct {
@@ -189,22 +195,32 @@ int main (int argc, char **argv)
 #endif // METHOD openmp
 
 #if METHOD == TEST
+  struct timeval t1, t2;
+  unsigned long seq_compute_time = 0;
+  unsigned long compute_time = 0;
+
+  gettimeofday (&t1, NULL);
   while(compute_naive(res));
+  gettimeofday (&t2, NULL);
+  seq_compute_time = TIME_DIFF(t1, t2);
+  printf("SEQ %ld.%03ld ms\n", seq_compute_time/1000, seq_compute_time%1000);
+
+  gettimeofday (&t1, NULL);
   while(compute_omp(sand));
+  gettimeofday (&t2, NULL);
+  printf("OMP %ld.%03ld ms\n", compute_time/1000, compute_time%1000);
+  compute_time = 0;
+
 
   int err = 0;
-  if (check(res, sand))
-    {
+  if (check(res, sand)) {
       fprintf(stderr,"OK OMP\n");
     }
-  else
-    {
+  else {
       fprintf(stderr,"KO OMP\n");
       err = 1;
     }
-
   return err;
-
 #endif
   return 0;
 }
