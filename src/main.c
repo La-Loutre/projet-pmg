@@ -205,13 +205,14 @@ int main (int argc, char **argv)
   while(compute_naive(res));
   gettimeofday (&t2, NULL);
   seq_compute_time = TIME_DIFF(t1, t2);
-  printf("SEQ %ld.%03ld ms\n", seq_compute_time/1000, seq_compute_time%1000);
+  printf("REFERENCE %ld.%03ld ms\n", seq_compute_time/1000, seq_compute_time%1000);
 
   gettimeofday (&t1, NULL);
   while(compute_omp(sand));
   gettimeofday (&t2, NULL);
+  compute_time = TIME_DIFF(t1,t2);
   printf("OMP %ld.%03ld ms\n", compute_time/1000, compute_time%1000);
-  compute_time = 0;
+
 
 
   int err = 0;
