@@ -4,8 +4,12 @@
 #include <math.h>
 #include <omp.h>
 
+#define TEST 0
+#define SEQEUCL 1
+#define PARAOMP 2
 #define _XOPEN_SOURCE 600
-
+#define FIVE_PILES 1
+#define ONE_PILE 2
 #include "display.h"
 
 // vecteur de pixel renvoyé par compute
@@ -18,7 +22,7 @@ unsigned get (unsigned x, unsigned y, sand_t sand)
   return sand[y][x];
 }
 
-#if CASE == 1
+#if CASE == FIVE_PILES
 // on met du sable dans chaque case
 static void sand_init (sand_t sand)
 {
@@ -27,9 +31,9 @@ static void sand_init (sand_t sand)
       sand[y][x] = MAX_HEIGHT + 1;
     }
 }
-#endif // CASE == 0
+#endif
 
-#if CASE == 2
+#if CASE == ONE_PILE
 // on construit un seul gros tas de sable
 static void sand_init (sand_t sand)
 {
@@ -39,7 +43,7 @@ static void sand_init (sand_t sand)
     }
   sand[DIM/2][DIM/2] = 100000;
 }
-#endif // CASE == 1
+#endif
 
 void afficher(sand_t sand)
 {
@@ -164,7 +168,7 @@ int main (int argc, char **argv)
   sand_init (sand);
   sand_init (res);
 
-#if METHOD == 1
+#if METHOD == SEQEUCL
   display_init (argc, argv,
 		DIM,
 		MAX_HEIGHT,
@@ -174,7 +178,7 @@ int main (int argc, char **argv)
 		sand);
 #endif // METHOD seq
 
-#if METHOD == 2
+#if METHOD == PARAOMP
   display_init (argc, argv,
 		DIM,
 		MAX_HEIGHT,
@@ -184,7 +188,7 @@ int main (int argc, char **argv)
 		sand);
 #endif // METHOD openmp
 
-#if METHOD == 3
+#if METHOD == TEST
   while(compute_naive(res));
   while(compute_omp(sand));
 
