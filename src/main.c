@@ -15,6 +15,8 @@
 #define FIVE_PILES 1
 #define ONE_PILE 2
 
+#define MAX_HEIGHT 4
+
 #define TIME_DIFF(t1, t2)						\
   ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
 
