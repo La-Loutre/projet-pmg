@@ -92,7 +92,7 @@ bool compute_eucl (sand_t sand)
 	    sand[y+1][x] += div4;
 	  if (x != 1)
 	    sand[y][x-1] += div4;
-	  if (x != DIM-2)
+ 	  if (x != DIM-2)
 	    sand[y][x+1] += div4;
 	}
     }
@@ -184,13 +184,23 @@ int main (int argc, char **argv)
 		sand);
 #endif // METHOD openmp
 
-  /* while(compute_eucl(res)); */
-  /* while(compute_omp(sand)); */
+#if METHOD == 3
+  while(compute_naive(res));
+  while(compute_omp(sand));
 
-  /* if (check(res, sand)) */
-  /*   printf("OK\n"); */
-  /* else */
-  /*   printf("KO\n"); */
+  int err = 0;
+  if (check(res, sand))
+    {
+      fprintf(stderr,"OK OMP\n");
+    }
+  else
+    {
+      fprintf(stderr,"KO OMP\n");
+      err = 1;
+    }
 
+  return err;
+
+#endif
   return 0;
 }
