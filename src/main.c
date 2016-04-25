@@ -147,19 +147,31 @@ bool compute_omp (sand_t sand)
   return changement;
   //  return DYNAMIC_COLORING;
 }
+static unsigned **create_sand_array_naive(int size)
+{
+  unsigned **sand_array = malloc(sizeof(unsigned*) * size);
+  for(int i = 0; i < size; i++)
+    sand_array[i] = malloc(size * sizeof(unsigned));
+  return sand_array;
 
+}
+static unsigned **create_sand_array(int size)
+{
+  unsigned *raw_sand_array = malloc(sizeof(unsigned*) * size * size);
+  unsigned **two_dim_sand_array = malloc(sizeof(unsigned**) * size);
+  for (int i = 0; i < size; ++i)
+    two_dim_sand_array[i] = &raw_sand_array[i*size];
+  return two_dim_sand_array;
+
+}
 
 int main (int argc, char **argv)
 {
   omp_set_num_threads(4);
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
-  unsigned **sand = malloc(sizeof(unsigned*) * DIM);
-  for(int i = 0; i < DIM; i++)
-    sand[i] = malloc(DIM * sizeof(unsigned));
-  unsigned **ref = malloc(sizeof(unsigned*) * DIM);
-  for(int i = 0; i < DIM; i++)
-    ref[i] = malloc(DIM * sizeof(unsigned));
+  unsigned **sand = create_sand_array(DIM);
+  unsigned **ref = create_sand_array_naive(DIM);
 
   sand_init (sand);
   sand_init (ref);
