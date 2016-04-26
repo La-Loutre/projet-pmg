@@ -188,7 +188,7 @@ static inline bool compute_naive (sand_t sand)
 
 static inline bool compute_omp (sand_t sand)
 {
-  int changement;
+  int changement = 0;
 #pragma omp parallel shared(changement)
   {
     int nthreads = omp_get_num_threads();
@@ -198,15 +198,14 @@ static inline bool compute_omp (sand_t sand)
     //memset(&mysand, 0, DIM*DIM);
 
     do {
+#pragma omp barrier
 #pragma omp atomic write
       changement = 0;
-#pragma omp barrier
-#pragma omp for schedule(static, chunk) //reduction(|:1)
+#pragma omp for schedule(static, chunk) reduction(|:changement)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = sand[y][x];
 	  if (val >= MAX_HEIGHT)
-#pragma omp atomic write
 	    changement = 1;
 	  val %= MAX_HEIGHT;
 	  val += sand[y-1][x] / 4
