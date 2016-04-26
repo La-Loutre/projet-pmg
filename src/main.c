@@ -193,11 +193,11 @@ static inline int compute_eucl (sand_t sand)
 	sand[y][x-1] += div4;
 	sand[y][x+1] += div4;
 	continue;
-	
+
       nothing_to_do:
 	continue;
-#endif	
-      
+#endif
+
       }
     }
 
@@ -324,7 +324,7 @@ int main (int argc, char **argv)
   int err = 0;
   struct timeval t1, t2;
   unsigned long seq_compute_time = 0;
-  unsigned long compute_time = 0;
+  unsigned long compute_time;
 
   unsigned **ref = create_sand_array(DIM);
   sand_init (ref);
@@ -334,6 +334,7 @@ int main (int argc, char **argv)
   gettimeofday (&t2, NULL);
   seq_compute_time = TIME_DIFF(t1, t2);
   timeandcheck("SEQ REF", seq_compute_time, ref, ref);
+  compute_time = 0;
   sand_init (sand);
 
   gettimeofday (&t1, NULL);
