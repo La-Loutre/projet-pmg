@@ -199,7 +199,7 @@ static inline bool compute_omp (sand_t sand)
 
     do {
 #pragma omp barrier
-#pragma omp single nowait
+#pragma omp single // barrier
       changement = 0;
 #pragma omp for schedule(static, chunk) reduction(|:changement)
       for (int y = 1; y < DIM-1; y++) {
