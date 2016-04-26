@@ -218,8 +218,13 @@ static inline bool compute_omp (sand_t sand)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = sand[y][x];
+#if MAX_HEIGHT != 4
 	  if (val >= MAX_HEIGHT)
 	    changement = 1;
+#else
+	  //NOTE: Only work if MAX_HEIGHT == 4
+	  changement = changement | (val >> 2);
+#endif
 	  val %= MAX_HEIGHT;
 	  val += sand[y-1][x] / 4
 	    + sand[y+1][x] / 4
@@ -229,7 +234,7 @@ static inline bool compute_omp (sand_t sand)
 	}
       } // END PARALLEL FOR
 
-      if (changement == 1) {
+      if (changement) {
 #pragma omp for schedule(static, chunk)
 	for (int y = 1; y < DIM-1; y++) {
 	  for (int x = 1; x < DIM-1; x++) {
@@ -237,7 +242,7 @@ static inline bool compute_omp (sand_t sand)
 	  }
 	} // END PARALLEL FOR
       }
-    } while(changement == 1);
+    } while(changement);
   } // END PARALLEL
   return changement;
   //  return DYNAMIC_COLORING;
@@ -263,7 +268,7 @@ static unsigned **create_sand_array(int size)
 
 int main (int argc, char **argv)
 {
-  omp_set_num_threads(4);
+  omp_set_num_threads(8);
   printf("BINDING %d ", omp_get_proc_bind());
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
