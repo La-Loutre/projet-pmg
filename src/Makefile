@@ -18,6 +18,7 @@ endif
 default: $(PROG)
 
 $(PROG): main.o display.o
+	mkdir -p $(BINDIR)
 	$(CC) -o $(BINDIR)/$@-m$(METHOD)-c$(CASE)-d$(DIM)	\
 $(LDFLAGS) $^ $(LDLIBS)
 
