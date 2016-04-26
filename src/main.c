@@ -9,6 +9,7 @@
 #include "display.h"
 
 #define _XOPEN_SOURCE 600
+
 #define ANSI_COLOR_RED     "\x1b[31m"
 #define ANSI_COLOR_GREEN   "\x1b[32m"
 #define ANSI_COLOR_RESET   "\x1b[0m"
@@ -21,7 +22,10 @@
 
 #define MAX_HEIGHT 4
 
-#define TIME_DIFF(t1, t2)						\
+#define MIN(a, b) \
+  (a < b ? a : b)
+
+#define TIME_DIFF(t1, t2) \
   ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
 
 // vecteur de pixel renvoyé par compute
@@ -84,25 +88,37 @@ bool check(sand_t ref, sand_t sand)
 }
 
 void timeandcheck(char *name,
+		  unsigned long ref_time,
 		  unsigned long compute_time,
 		  sand_t ref,
 		  sand_t sand)
 {
-  fprintf(stderr,"%s %ld.%03ld ms ", name, compute_time/1000, compute_time%1000);
+  fprintf(stderr, "%s %ld.%03ld ms ",
+	  name, compute_time/1000, compute_time%1000);
+
+  double speedup;
+  if (ref_time == 0)
+    speedup = 1;
+  else {
+    speedup = ref_time;
+    speedup /= compute_time;
+  }
+  fprintf(stderr, "%.1f× ", speedup);
+
   if (check(ref, sand))
-    fprintf(stderr,"%s %sSUCCESS%s\n", name, ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
+    fprintf(stderr,"%sSUCCESS%s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%s %sFAILURE%s\n", name, ANSI_COLOR_RED, ANSI_COLOR_RESET);
+    fprintf(stderr,"%sFAILURE%s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
 }
 
 unsigned long process(char *name,
 		      sand_t ref,
 		      sand_t sand,
 		      compute_func_t compute,
-		      struct timeval t1,
-		      struct timeval t2,
+		      unsigned long ref_time,
 		      bool loop)
 {
+  struct timeval t1, t2;
   unsigned long compute_time = 0;
   sand_init (sand);
   gettimeofday (&t1, NULL);
@@ -110,9 +126,9 @@ unsigned long process(char *name,
     while(compute(sand));
   else
     compute(sand);
-      gettimeofday (&t2, NULL);
+  gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1, t2);
-  timeandcheck(name, compute_time, ref, sand);
+  timeandcheck(name, ref_time, compute_time, ref, sand);
   return compute_time;
 }
 
@@ -126,7 +142,6 @@ float *iterate(compute_func_t compute_func,
   }
   return DYNAMIC_COLORING;
 }
-
 
 static int compute_eucl_chunk(sand_t sand)
 {
@@ -228,12 +243,12 @@ static inline int compute_eucl (sand_t sand)
 
 static inline int compute_naive (sand_t sand)
 {
-  bool changement = false;
+  int changement = 0;
   for (int y = 1; y < DIM-1; y++)
     {
       for (int x = 1; x < DIM-1; x++)
 	if(sand[y][x] >= 4) {
-	  changement = true;
+	  changement = 1;
 	  sand[y][x] -= 4;
 	  sand[y-1][x] += 1;
 	  sand[y+1][x] += 1;
@@ -343,13 +358,18 @@ int main (int argc, char **argv)
 
 #if METHOD == TEST
   unsigned **ref = create_sand_array(DIM);
-  unsigned long seq_compute_time;
-  struct timeval t1, t2;
+  unsigned long ref_time = 0;
 
-  seq_compute_time = process("SEQ REF", ref, ref, compute_naive, t1, t2, true);
-  process ("SEQ EUCL, ", ref, sand, compute_eucl, t1, t2, true);
-  process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, t1, t2, false);
-  process ("PAR OMP", ref, sand, compute_omp, t1, t2, false);
+  // NOTE: We use naive compute time for reference
+  ref_time = process("SEQ REF", ref, ref, compute_naive, ref_time, true);
+
+  ref_time = MIN(ref_time,
+		 process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
+
+  //process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, false);
+
+  // NOTE: We use best sequential time for reference
+  process ("PAR OMP", ref, sand, compute_omp, ref_time, false);
 
   fprintf(stderr,"\n");
   return 0;
