@@ -83,14 +83,37 @@ bool check(sand_t ref, sand_t sand)
   return true;
 }
 
-void timeandcheck(char *name, unsigned long compute_time,
-		  sand_t ref, sand_t sand)
+void timeandcheck(char *name,
+		  unsigned long compute_time,
+		  sand_t ref,
+		  sand_t sand)
 {
   fprintf(stderr,"%s %ld.%03ld ms ", name, compute_time/1000, compute_time%1000);
   if (check(ref, sand))
     fprintf(stderr,"%s %sSUCCESS%s\n", name, ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
     fprintf(stderr,"%s %sFAILURE%s\n", name, ANSI_COLOR_RED, ANSI_COLOR_RESET);
+}
+
+unsigned long process(char *name,
+		      sand_t ref,
+		      sand_t sand,
+		      compute_func_t compute,
+		      struct timeval t1,
+		      struct timeval t2,
+		      bool loop)
+{
+  unsigned long compute_time = 0;
+  sand_init (sand);
+  gettimeofday (&t1, NULL);
+  if (loop)
+    while(compute(sand));
+  else
+    compute(sand);
+      gettimeofday (&t2, NULL);
+  compute_time = TIME_DIFF(t1, t2);
+  timeandcheck(name, compute_time, ref, sand);
+  return compute_time;
 }
 
 float *iterate(compute_func_t compute_func,
@@ -195,8 +218,8 @@ static inline int compute_eucl (sand_t sand)
 
 	}
 
-#endif	
-      
+#endif
+
       }
     }
 
@@ -229,7 +252,7 @@ static inline int compute_omp (sand_t sand)
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
     int chunk = DIM/nthreads;
-    unsigned mysand [DIM][DIM]; // NOTE: decalage pointer de pile instant
+    unsigned mysand [DIM][DIM]; // NOTE: base pointer inc, should be fast
     //memset(&mysand, 0, DIM*DIM);
 
     do {
@@ -244,7 +267,7 @@ static inline int compute_omp (sand_t sand)
 	  if (val >= MAX_HEIGHT)
 	    changement = 1;
 #else
-	  //NOTE: Only work if MAX_HEIGHT == 4
+	  // NOTE: works only if MAX_HEIGHT == 4
 	  changement = changement | (val >> 2);
 #endif
 	  val %= MAX_HEIGHT;
@@ -267,7 +290,6 @@ static inline int compute_omp (sand_t sand)
     } while(changement);
   } // END PARALLEL
   return changement;
-  //  return DYNAMIC_COLORING;
 }
 
 static unsigned **create_sand_array_naive(int size)
@@ -320,45 +342,14 @@ int main (int argc, char **argv)
 #endif // METHOD PAR OMP
 
 #if METHOD == TEST
-  int err = 0;
-  struct timeval t1, t2;
-  unsigned long seq_compute_time = 0;
-  unsigned long compute_time;
-
   unsigned **ref = create_sand_array(DIM);
-  sand_init (ref);
+  unsigned long seq_compute_time;
+  struct timeval t1, t2;
 
-  gettimeofday (&t1, NULL);
-  while(compute_naive(ref));
-  gettimeofday (&t2, NULL);
-  seq_compute_time = TIME_DIFF(t1, t2);
-  timeandcheck("SEQ REF", seq_compute_time, ref, ref);
-  compute_time = 0;
-  sand_init (sand);
-
-  gettimeofday (&t1, NULL);
-  while(compute_eucl(sand)==1);
-  gettimeofday (&t2, NULL);
-  compute_time = TIME_DIFF(t1,t2);
-  timeandcheck("SEQ EUCL", compute_time, sand, ref);
-  compute_time = 0;
-  sand_init (sand);
-
-  gettimeofday (&t1, NULL);
-  compute_eucl_chunk(sand);
-  gettimeofday (&t2, NULL);
-  compute_time = TIME_DIFF(t1,t2);
-  timeandcheck("SEQ EUCL CHUNK", compute_time, sand, ref);
-  compute_time = 0;
-  sand_init (sand);
-
-  gettimeofday (&t1, NULL);
-  compute_omp(sand);
-  gettimeofday (&t2, NULL);
-  compute_time = TIME_DIFF(t1,t2);
-  timeandcheck("PAR OMP", compute_time, sand, ref);
-  compute_time = 0;
-  sand_init (sand);
+  seq_compute_time = process("SEQ REF", ref, ref, compute_naive, t1, t2, true);
+  process ("SEQ EUCL, ", ref, sand, compute_eucl, t1, t2, true);
+  process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, t1, t2, false);
+  process ("PAR OMP", ref, sand, compute_omp, t1, t2, false);
 
   fprintf(stderr,"\n");
   return 0;
