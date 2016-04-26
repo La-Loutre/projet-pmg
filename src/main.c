@@ -73,7 +73,7 @@ void afficher(sand_t sand)
 
 bool check(sand_t ref, sand_t sand)
 {
-   // NOTE: we don't check the edges
+  // NOTE: we don't check the edges
   for(int i = 1; i < DIM-1; i++) {
     for(int j = 1; j < DIM-1; j++) {
       if (ref[i][j] != sand[i][j])
@@ -263,15 +263,12 @@ static unsigned **create_sand_array(int size)
 
 int main (int argc, char **argv)
 {
-  omp_set_num_threads(4);
+  omp_set_num_threads(8);
   printf("BINDING %d ", omp_get_proc_bind());
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
   unsigned **sand = create_sand_array(DIM);
-  unsigned **ref = create_sand_array(DIM);
-
   sand_init (sand);
-  sand_init (ref);
 
 #if METHOD == SEQEUCL
   display_init (argc, argv,
@@ -281,6 +278,7 @@ int main (int argc, char **argv)
 		iterate,
 		compute_eucl_chunk,
 		sand);
+  return 0;
 #endif // METHOD SEQ EUCL
 
 #if METHOD == PAROMP
@@ -291,6 +289,7 @@ int main (int argc, char **argv)
 		iterate,
 		compute_omp,
 		sand);
+  return 0;
 #endif // METHOD PAR OMP
 
 #if METHOD == TEST
@@ -298,6 +297,9 @@ int main (int argc, char **argv)
   struct timeval t1, t2;
   unsigned long seq_compute_time = 0;
   unsigned long compute_time = 0;
+
+  unsigned **ref = create_sand_array(DIM);
+  sand_init (ref);
 
   gettimeofday (&t1, NULL);
   while(compute_naive(ref));
@@ -331,6 +333,5 @@ int main (int argc, char **argv)
 
   fprintf(stderr,"\n");
   return 0;
-#endif // METHOD test
-  return 0;
+#endif // METHOD TEST
 }
