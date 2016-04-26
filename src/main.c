@@ -105,7 +105,7 @@ float *iterate(compute_func_t compute_func,
 }
 
 
-static bool compute_eucl_chunk(sand_t sand)
+static int compute_eucl_chunk(sand_t sand)
 {
   // We do expect memory to be continuous
   // doesn't work with naive sand
@@ -157,30 +157,54 @@ static bool compute_eucl_chunk(sand_t sand)
   return changement;
 }
 
-static inline bool compute_eucl (sand_t sand)
+static inline int compute_eucl (sand_t sand)
 {
-  int changement = false;
+  int changement = 0;
   int mod4;
   int div4;
+#if MAX_HEIGHT != 4
+  void* addr_goto[2]={&&calc,&&nothing_to_do};
+#endif
+
   for (int y = 1; y < DIM-1; ++y)
     {
-      for (int x = 1; x < DIM-1; ++x)
-	if(sand[y][x] >= 4) {
-	  changement = true;
-	  mod4 = sand[y][x] % 4;
-	  div4 = sand[y][x] / 4;
+      for (int x = 1; x < DIM-1; ++x){
+#if MAX_HEIGHT == 4
+	if(sand[y][x] >= MAX_HEIGHT) {
+	  changement = 1;
+	  mod4 = sand[y][x] % MAX_HEIGHT;
+	  div4 = sand[y][x] / MAX_HEIGHT;
 	  sand[y][x] = mod4;
 	  sand[y-1][x] += div4;
 	  sand[y+1][x] += div4;
 	  sand[y][x-1] += div4;
 	  sand[y][x+1] += div4;
 	}
+#else
+	goto *addr_goto[!(sand[y][x] >> 2)];
+
+      calc:
+	changement = 1;
+	mod4 = sand[y][x] % MAX_HEIGHT;
+	div4 = sand[y][x] / MAX_HEIGHT;
+	sand[y][x] = mod4;
+	sand[y-1][x] += div4;
+	sand[y+1][x] += div4;
+	sand[y][x-1] += div4;
+	sand[y][x+1] += div4;
+	continue;
+	
+      nothing_to_do:
+	continue;
+#endif	
+      
+      }
     }
-  //  return DYNAMIC_COLORING;
+
   return changement;
 }
 
-static inline bool compute_naive (sand_t sand)
+static inline int compute_naive (sand_t sand)
 {
   bool changement = false;
   for (int y = 1; y < DIM-1; y++)
@@ -196,10 +220,9 @@ static inline bool compute_naive (sand_t sand)
 	}
     }
   return changement;
-  //  return DYNAMIC_COLORING;
 }
 
-static inline bool compute_omp (sand_t sand)
+static inline int compute_omp (sand_t sand)
 {
   int changement = 0;
 #pragma omp parallel shared(changement)
@@ -218,8 +241,13 @@ static inline bool compute_omp (sand_t sand)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = sand[y][x];
+#if MAX_HEIGHT != 4
 	  if (val >= MAX_HEIGHT)
 	    changement = 1;
+#else
+	  //NOTE: Only work if MAX_HEIGHT == 4
+	  changement = changement | (val >> 2);
+#endif
 	  val %= MAX_HEIGHT;
 	  val += sand[y-1][x] / 4
 	    + sand[y+1][x] / 4
@@ -228,16 +256,16 @@ static inline bool compute_omp (sand_t sand)
 	  mysand[y][x] = val;
 	}
       } // END PARALLEL FOR
-
-      if (changement == 1) {
+      if (changement) {
 #pragma omp for schedule(static, chunk)
+	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk-!myid; y++) {
 	for (int y = 1; y < DIM-1; y++) {
 	  for (int x = 1; x < DIM-1; x++) {
 	    sand[y][x] = mysand[y][x];
 	  }
 	} // END PARALLEL FOR
       }
-    } while(changement == 1);
+    } while(changement);
   } // END PARALLEL
   return changement;
   //  return DYNAMIC_COLORING;
@@ -276,7 +304,7 @@ int main (int argc, char **argv)
 		MAX_HEIGHT,
 		get,
 		iterate,
-		compute_eucl_chunk,
+		compute_eucl,
 		sand);
   return 0;
 #endif // METHOD SEQ EUCL
@@ -306,9 +334,10 @@ int main (int argc, char **argv)
   gettimeofday (&t2, NULL);
   seq_compute_time = TIME_DIFF(t1, t2);
   timeandcheck("SEQ REF", seq_compute_time, ref, ref);
+  sand_init (sand);
 
   gettimeofday (&t1, NULL);
-  while(compute_eucl(sand));
+  while(compute_eucl(sand)==1);
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
   timeandcheck("SEQ EUCL", compute_time, sand, ref);
