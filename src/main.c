@@ -68,16 +68,30 @@ void afficher(sand_t sand)
   }
 }
 
-bool check(sand_t res, sand_t sand)
+bool check(sand_t ref, sand_t sand)
 {
    // NOTE: we don't check the edges
   for(int i = 1; i < DIM-1; i++) {
     for(int j = 1; j < DIM-1; j++) {
-      if (res[i][j] != sand[i][j])
+      if (ref[i][j] != sand[i][j])
 	return false;
     }
   }
   return true;
+}
+
+void timeandcheck(char *name, unsigned long compute_time,
+		  sand_t ref, sand_t sand)
+{
+  char *RED="\\033[1;31m";
+  char *RESET="\\033[0;39m";
+  char *GREEN="\\033[1;32m";
+
+  fprintf(stderr,"%s %ld.%03ld ms ", name, compute_time/1000, compute_time%1000);
+  if (check(ref, sand))
+    fprintf(stderr,"%sOK %s%s\n",RED, name, RESET);
+  else
+    fprintf(stderr,"%sKO %s%s\n", GREEN, name, RESET);
 }
 
 float *iterate(compute_func_t compute_func,
@@ -290,23 +304,13 @@ int main (int argc, char **argv)
   while(compute_naive(ref));
   gettimeofday (&t2, NULL);
   seq_compute_time = TIME_DIFF(t1, t2);
-  printf("REFERENCE %ld.%03ld ms\n", seq_compute_time/1000,
-	 seq_compute_time%1000);
-
+  timeandcheck("SEQ REF", seq_compute_time, ref, ref);
 
   gettimeofday (&t1, NULL);
   while(compute_eucl(sand));
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
-  fprintf(stderr,"EUCL %ld.%03ld ms ", compute_time/1000, compute_time%1000);
-
-  if (check(ref, sand)) {
-    fprintf(stderr,"OK EUCL\n");
-  }
-  else {
-    fprintf(stderr,"KO EUCL\n");
-    err = -1;
-  }
+  timeandcheck("SEQ EUCL", compute_time, sand, ref);
   compute_time = 0;
   sand_init (sand);
 
@@ -314,15 +318,7 @@ int main (int argc, char **argv)
   compute_eucl_chunk(sand);
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
-  fprintf(stderr,"EUCL CHUNK %ld.%03ld ms ", compute_time/1000, compute_time%1000);
-
-  if (check(ref, sand)) {
-    fprintf(stderr,"OK EUCL CHUNK\n");
-  }
-  else {
-    fprintf(stderr,"KO EUCL CHUNK\n");
-    err = -1;
-  }
+  timeandcheck("SEQ EUCL CHUNK", compute_time, sand, ref);
   compute_time = 0;
   sand_init (sand);
 
@@ -330,15 +326,7 @@ int main (int argc, char **argv)
   compute_omp(sand);
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
-  fprintf(stderr, "OMP %ld.%03ld ms ", compute_time/1000, compute_time%1000);
-
-  if (check(ref, sand)) {
-    fprintf(stderr,"OK OMP\n");
-  }
-  else {
-    fprintf(stderr,"KO OMP\n");
-    err = -1;
-  }
+  timeandcheck("PAR OMP", compute_time, sand, ref);
   compute_time = 0;
   sand_init (sand);
 
