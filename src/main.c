@@ -12,7 +12,7 @@
 
 #define TEST 0
 #define SEQEUCL 1
-#define PARAOMP 2
+#define PAROMP 2
 #define FIVE_PILES 1
 #define ONE_PILE 2
 
@@ -70,6 +70,7 @@ void afficher(sand_t sand)
 
 bool check(sand_t res, sand_t sand)
 {
+   // NOTE: we don't check the edges
   for(int i = 1; i < DIM-1; i++) {
     for(int j = 1; j < DIM-1; j++) {
       if (res[i][j] != sand[i][j])
@@ -97,46 +98,45 @@ static bool compute_eucl_chunk(sand_t sand)
   // doesn't work with naive sand
   unsigned *sand_one_array = &sand[0][0];
   bool changement = true;
-  int chunck_stagned;
+  int chunk_stagned;
   int mod4;
   int div4;
   int block_size = 3;
-  int nb_chunk = DIM/block_size;
+  int nb_chunk = DIM / block_size;
   if (DIM % block_size != 0)
     nb_chunk += 1;
 
-  int chunck[nb_chunk];
-  for (int i=0 ; i<nb_chunk;++i)
-    chunck[i] = 1;
+  int chunk[nb_chunk];
+  memset(chunk, 1, nb_chunk);
 
   int start_offset;
   while(changement == true){
     changement = false;
     start_offset = DIM+1;
-    for(int chunck_iter=0; chunck_iter < nb_chunk; ++chunck_iter)
+    for(int chunk_iter=0; chunk_iter < nb_chunk; ++chunk_iter)
       {
-	if (chunck[chunck_iter]){
-	  chunck_stagned = 0;
-	  for (int cursor = DIM*block_size*chunck_iter+start_offset;
-	       cursor < DIM*DIM && cursor < DIM*block_size*(chunck_iter+1)-1;
+	if (chunk[chunk_iter]){
+	  chunk_stagned = 0;
+	  for (int cursor = DIM*block_size*chunk_iter+start_offset;
+	       cursor < DIM*DIM && cursor < DIM*block_size*(chunk_iter+1)-1;
 	       ++cursor)
 	    {
 	      if(sand_one_array[cursor] >= 4) {
 		changement = true;
-		chunck_stagned = 1;
+		chunk_stagned = 1;
 		mod4 = sand_one_array[cursor] % 4;
 		div4 = sand_one_array[cursor] / 4;
 		sand_one_array[cursor] = mod4;
 		sand_one_array[cursor - DIM] += div4;
-		chunck[(cursor - DIM )/(DIM*block_size)] = 1;
+		chunk[(cursor - DIM )/(DIM*block_size)] = 1;
 		sand_one_array[cursor + DIM] += div4;
-		chunck[(cursor + DIM )/(DIM*block_size)] = 1;
+		chunk[(cursor + DIM )/(DIM*block_size)] = 1;
 		sand_one_array[cursor - 1] += div4;
 		sand_one_array[cursor + 1] += div4;
 	      }
 	    }
 
-	  chunck[chunck_iter] = chunck_stagned;
+	  chunk[chunk_iter] = chunk_stagned;
 	}
 	start_offset = 0;
       }
@@ -188,38 +188,44 @@ static inline bool compute_naive (sand_t sand)
 
 static inline bool compute_omp (sand_t sand)
 {
-  bool changement = false;
-#pragma omp parallel firstprivate(sand) shared(changement)
+  int changement;
+#pragma omp parallel shared(changement)
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
     int chunk = DIM/nthreads;
-    unsigned mysand [DIM][DIM];
+    unsigned mysand [DIM][DIM]; // NOTE: decalage pointer de pile instant
+    //memset(&mysand, 0, DIM*DIM);
 
-    //do {
-    //memcpy(&mysand, &sand, DIM*DIM);
-    memset(&mysand, 0, DIM*DIM);
+    do {
+#pragma omp atomic write
+      changement = 0;
+#pragma omp barrier
+#pragma omp for schedule(static, chunk) //reduction(|:1)
+      for (int y = 1; y < DIM-1; y++) {
+	for (int x = 1; x < DIM-1; x++) {
+	  int val = sand[y][x];
+	  if (val >= MAX_HEIGHT)
+#pragma omp atomic write
+	    changement = 1;
+	  val %= MAX_HEIGHT;
+	  val += sand[y-1][x] / 4
+	    + sand[y+1][x] / 4
+	    + sand[y][x-1] / 4
+	    + sand[y][x+1] / 4;
+	  mysand[y][x] = val;
+	}
+      } // END PARALLEL FOR
 
-#pragma omp for schedule(static, chunk) reduction(||:changement)
-    for (int y = 1; y < DIM-1; y++) {
-      for (int x = 1; x < DIM-1; x++) {
-	changement = 1;
-	int val = sand[y][x];
-	val %= 4;
-	val += sand[y-1][x] / 4
-	  + sand[y+1][x] / 4
-	  + sand[y][x-1] / 4
-	  + sand[y][x+1] / 4;
-	mysand[x][y] = val;
-      }
-    } // END PARALLEL FOR
+      if (changement == 1) {
 #pragma omp for schedule(static, chunk)
-    for (int y = 1; y < DIM-1; y++) {
-      for (int x = 1; x < DIM-1; x++) {
-	sand[x][y] = mysand[x][y];
+	for (int y = 1; y < DIM-1; y++) {
+	  for (int x = 1; x < DIM-1; x++) {
+	    sand[y][x] = mysand[y][x];
+	  }
+	} // END PARALLEL FOR
       }
-    } // END PARALLEL FOR
-      //} while(changement);
+    } while(changement == 1);
   } // END PARALLEL
   return changement;
   //  return DYNAMIC_COLORING;
@@ -263,9 +269,9 @@ int main (int argc, char **argv)
 		iterate,
 		compute_eucl_chunk,
 		sand);
-#endif // METHOD seq
+#endif // METHOD SEQ EUCL
 
-#if METHOD == PARAOMP
+#if METHOD == PAROMP
   display_init (argc, argv,
 		DIM,
 		MAX_HEIGHT,
@@ -273,7 +279,7 @@ int main (int argc, char **argv)
 		iterate,
 		compute_omp,
 		sand);
-#endif // METHOD openmp
+#endif // METHOD PAR OMP
 
 #if METHOD == TEST
   int err = 0;
@@ -306,7 +312,23 @@ int main (int argc, char **argv)
   sand_init (sand);
 
   gettimeofday (&t1, NULL);
-  while(compute_omp(sand));
+  compute_eucl_chunk(sand);
+  gettimeofday (&t2, NULL);
+  compute_time = TIME_DIFF(t1,t2);
+  fprintf(stderr,"EUCL CHUNK %ld.%03ld ms ", compute_time/1000, compute_time%1000);
+
+  if (check(ref, sand)) {
+    fprintf(stderr,"OK EUCL CHUNK\n");
+  }
+  else {
+    fprintf(stderr,"KO EUCL CHUNK\n");
+    err = -1;
+  }
+  compute_time = 0;
+  sand_init (sand);
+
+  gettimeofday (&t1, NULL);
+  compute_omp(sand);
   gettimeofday (&t2, NULL);
   compute_time = TIME_DIFF(t1,t2);
   fprintf(stderr, "OMP %ld.%03ld ms ", compute_time/1000, compute_time%1000);
@@ -323,6 +345,6 @@ int main (int argc, char **argv)
 
   fprintf(stderr,"\n");
   return 0;
-#endif
+#endif // METHOD test
   return 0;
 }

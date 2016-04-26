@@ -380,7 +380,7 @@ int periods[]={2000000,1000000,500000,250000,100000,50000,10000};
 #define MaxDisplayPeriod (sizeof(periods)/sizeof(periods[0]))
 volatile int displayPeriod = MaxDisplayPeriod ; // 10 fps
 
-volatile int nbIterations = 5;
+volatile int nbIterations = 0;
 int iterations[]={1,2,5,10,25,50,100,250,500,1000,10000};
 #define MaxNbIterations (sizeof(iterations)/sizeof(iterations[0]))
 
