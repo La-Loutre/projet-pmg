@@ -198,9 +198,6 @@ static inline int compute_eucl (sand_t sand)
   int changement = 0;
   int mod4;
   int div4;
-#if MAX_HEIGHT != 4
-  void* addr_goto[2]={&&calc,&&nothing_to_do};
-#endif
 
   for (int y = 1; y < DIM-1; ++y)
     {
@@ -217,17 +214,14 @@ static inline int compute_eucl (sand_t sand)
 	  sand[y][x+1] += div4;
 	}
 #else
-	switch(!(sand[y][x] >> 2)){
+	switch(!(div4=sand[y][x] >> 2)){
 	case 0:
 	  changement = 1;
-	  mod4 = sand[y][x] % MAX_HEIGHT;
-	  div4 = sand[y][x] / MAX_HEIGHT;
-	  sand[y][x] = mod4;
+	  sand[y][x] &= 3;
 	  sand[y-1][x] += div4;
 	  sand[y+1][x] += div4;
 	  sand[y][x-1] += div4;
 	  sand[y][x+1] += div4;
-	  break;
 	}
 #endif
       }
