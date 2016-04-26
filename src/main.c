@@ -198,10 +198,19 @@ static inline int compute_eucl (sand_t sand)
   int changement = 0;
   int mod4;
   int div4;
-
-  for (int y = 1; y < DIM-1; ++y)
-    {
-      for (int x = 1; x < DIM-1; ++x){
+  int chunk_size = 2;
+  int nb_chunk = DIM / chunk_size ;
+  int chunk[nb_chunk];
+  for (int i=0;i<nb_chunk;++i)
+    chunk[i]=1;
+  int start=1;
+  for (int chunk_iter = 0; chunk_iter < nb_chunk; ++chunk_iter){
+    if (!chunk[chunk_iter])
+      continue;
+    chunk[chunk_iter] = 0;
+    for (int y = chunk_iter*chunk_size+start; y < DIM-1 && y < chunk_iter*chunk_size+start+chunk_size; ++y)
+      {
+	for (int x = 1; x < DIM-1; ++x){
 #if MAX_HEIGHT != 4
 	if(sand[y][x] >= MAX_HEIGHT) {
 	  changement = 1;
@@ -217,6 +226,9 @@ static inline int compute_eucl (sand_t sand)
 	switch(!(div4=sand[y][x] >> 2)){
 	case 0:
 	  changement = 1;
+	  chunk[y/chunk_size] = 1;
+	  chunk[(y-1)/chunk_size] |= div4;
+	  chunk[(y+1)/chunk_size] |= div4;
 	  sand[y][x] &= 3;
 	  sand[y-1][x] += div4;
 	  sand[y+1][x] += div4;
@@ -226,6 +238,8 @@ static inline int compute_eucl (sand_t sand)
 #endif
       }
     }
+    start=0;
+  }
   return changement;
 }
 
