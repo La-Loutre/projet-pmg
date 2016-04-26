@@ -9,6 +9,9 @@
 #include "display.h"
 
 #define _XOPEN_SOURCE 600
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
 #define TEST 0
 #define SEQEUCL 1
@@ -83,15 +86,11 @@ bool check(sand_t ref, sand_t sand)
 void timeandcheck(char *name, unsigned long compute_time,
 		  sand_t ref, sand_t sand)
 {
-  char *RED="\\033[1;31m";
-  char *RESET="\\033[0;39m";
-  char *GREEN="\\033[1;32m";
-
   fprintf(stderr,"%s %ld.%03ld ms ", name, compute_time/1000, compute_time%1000);
   if (check(ref, sand))
-    fprintf(stderr,"%sOK %s%s\n",RED, name, RESET);
+    fprintf(stderr,"%s %sSUCCESS%s\n", name, ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%sKO %s%s\n", GREEN, name, RESET);
+    fprintf(stderr,"%s %sFAILURE%s\n", name, ANSI_COLOR_RED, ANSI_COLOR_RESET);
 }
 
 float *iterate(compute_func_t compute_func,
