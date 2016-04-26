@@ -1,10 +1,11 @@
+#include <math.h>
+#include <omp.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
-#include <omp.h>
-#include <sys/time.h>
 #include <string.h>
+#include <sys/time.h>
+#include <tgmath.h>
 
 #include "display.h"
 
@@ -21,9 +22,6 @@
 #define ONE_PILE 2
 
 #define MAX_HEIGHT 4
-
-#define MIN(a, b) \
-  (a < b ? a : b)
 
 #define TIME_DIFF(t1, t2) \
   ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
@@ -230,14 +228,10 @@ static inline int compute_eucl (sand_t sand)
 	  sand[y][x-1] += div4;
 	  sand[y][x+1] += div4;
 	  break;
-
 	}
-
 #endif
-
       }
     }
-
   return changement;
 }
 
@@ -363,8 +357,8 @@ int main (int argc, char **argv)
   // NOTE: We use naive compute time for reference
   ref_time = process("SEQ REF", ref, ref, compute_naive, ref_time, true);
 
-  ref_time = MIN(ref_time,
-		 process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
+  ref_time = fmin(ref_time,
+		  process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
 
   //process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, false);
 
