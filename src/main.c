@@ -428,12 +428,8 @@ static inline int compute_omp_sem (sand_t sand)
 	else
 	  last = first + chunk-1;
 
-		/* fprintf(stderr, "thread 0%d y %d first %d last %d\n", */
-		/* myid, y, first, last); */
-
 	// WAIT
 	if (y == last && last != DIM-2) {
-	  //fprintf(stderr, "%d\n", last);
 	  assert(sem_wait(&locks[chunk_number]) == 0);
 	}
 	for (int x = 1; x < DIM-1; x++) {
@@ -443,24 +439,19 @@ static inline int compute_omp_sem (sand_t sand)
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  changement = changement | (val >> 2);
 	  val %= MAX_HEIGHT;
-	  /* fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x); */
-	  /* fprintf(stderr,"VAL = %d",val); */
-	  /* fprintf(stderr,"RF = %d",read_from[y][x]); */
+
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
 	    + read_from[y][x+1] / 4;
 
-	  /* fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x); */
 	  write_to[y][x] = val;
 	}
 	// POST
-	if (y == first && first != 0) {
+	if (y == first && first != 1) {
 	  assert(nthreads-1 > chunk_number-1);
 	  assert(chunk_number >=0);
-
 	  assert (sem_post(&locks[chunk_number-1])==0);
-	  //	    fprintf(stderr, "%d\n", first);
 	}
 
 
@@ -495,7 +486,7 @@ static inline int compute_omp_sem (sand_t sand)
 
  int main (int argc, char **argv)
  {
-   omp_set_num_threads(8);
+   omp_set_num_threads(4);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
@@ -542,12 +533,12 @@ static inline int compute_omp_sem (sand_t sand)
    // NOTE: We use naive compute time for reference
    ref_time = process("SEQ REF", ref, ref, compute_naive, ref_time, true);
 
-   ref_time = fmin(ref_time,
-		   process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true)); */
 
-   ref_time = fmin(ref_time,
-		   process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk,
-			    ref_time, true));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, */
+   /* 			    ref_time, true)); */
 
    //process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, false);
 
