@@ -393,7 +393,7 @@ static inline int compute_omp_sem (sand_t sand)
       aux[i][y]=0;
   sand_t swaptab[2] = {sand, aux};
 
-  sem_t *locks = malloc(sizeof(sem_t)*nthreads-1);
+  sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1));
   for (int i = 0; i < nthreads-1; i++)
     assert(sem_init(&locks[i], 0, 0) ==0);
 
@@ -443,15 +443,15 @@ static inline int compute_omp_sem (sand_t sand)
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  changement = changement | (val >> 2);
 	  val %= MAX_HEIGHT;
-	  fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x);
-	  fprintf(stderr,"VAL = %d",val);
-	  fprintf(stderr,"RF = %d",read_from[y][x]);
+	  /* fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x); */
+	  /* fprintf(stderr,"VAL = %d",val); */
+	  /* fprintf(stderr,"RF = %d",read_from[y][x]); */
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
 	    + read_from[y][x+1] / 4;
 
-	  fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x);
+	  /* fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x); */
 	  write_to[y][x] = val;
 	}
 	// POST
@@ -495,7 +495,7 @@ static inline int compute_omp_sem (sand_t sand)
 
  int main (int argc, char **argv)
  {
-   omp_set_num_threads(1);
+   omp_set_num_threads(8);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
