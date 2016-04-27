@@ -50,8 +50,8 @@ test:
 	./bin/sandpiles-m0-c2-d128
 	./bin/sandpiles-m0-c1-d258
 	./bin/sandpiles-m0-c2-d258
-	./bin/sandpiles-m0-c1-d512
-	./bin/sandpiles-m0-c2-d512
+	./bin/sandpiles-m0-c1-d514
+	./bin/sandpiles-m0-c2-d514
 
 clean:
 	$(MAKE) clean
