@@ -129,18 +129,22 @@ unsigned long process(char *name,
 		      sand_t sand,
 		      compute_func_t compute,
 		      unsigned long ref_time,
-		      bool loop)
+		      bool loop,
+		      int repeat)
 {
   struct timeval t1, t2;
   unsigned long compute_time = 0;
-  sand_init (sand);
-  gettimeofday (&t1, NULL);
-  if (loop)
-    while(compute(sand));
-  else
-    compute(sand);
-  gettimeofday (&t2, NULL);
-  compute_time = TIME_DIFF(t1, t2);
+  for (int i = 0; i < repeat; i++) {
+    sand_init (sand);
+    gettimeofday (&t1, NULL);
+    if (loop)
+      while(compute(sand));
+    else
+      compute(sand);
+    gettimeofday (&t2, NULL);
+    compute_time += TIME_DIFF(t1, t2);
+  }
+  compute_time /= repeat;
   timeandcheck(name, ref_time, compute_time, ref, sand);
   return compute_time;
 }
@@ -529,21 +533,26 @@ static inline int compute_omp_sem (sand_t sand)
 #if METHOD == TEST
    unsigned **ref = create_sand_array(DIM);
    unsigned long ref_time = 0;
+   int repeat = 1;
 
    // NOTE: We use naive compute time for reference
-   ref_time = process("SEQ REF", ref, ref, compute_naive, ref_time, true);
+   ref_time = process("SEQ REF",
+		      ref, ref, compute_naive, ref_time, true, repeat);
 
    ref_time = fmin(ref_time,
 		   process ("SEQ EUCL",
-			    ref, sand, compute_eucl, ref_time, true));
+			    ref, sand, compute_eucl, ref_time, true, repeat));
 
    ref_time = fmin(ref_time,
 		   process ("SEQ EUCL CHUNK",
-			    ref, sand, compute_eucl_chunk, ref_time, true));
+			    ref, sand, compute_eucl_chunk, ref_time,
+			    true, repeat));
 
    // NOTE: We use best sequential time for reference
-   process ("PAR OMP", ref, sand, compute_omp, ref_time, false);
-   process ("PAR OMP SEM", ref, sand, compute_omp_sem, ref_time, false);
+   process ("PAR OMP",
+	    ref, sand, compute_omp, ref_time, false, repeat);
+   process ("PAR OMP SEM",
+	    ref, sand, compute_omp_sem, ref_time, false, repeat);
 
    fprintf(stderr,"\n");
    return 0;
