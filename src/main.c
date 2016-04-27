@@ -141,59 +141,7 @@ float *iterate(compute_func_t compute_func,
   return DYNAMIC_COLORING;
 }
 
-static int compute_eucl_chunk(sand_t sand)
-{
-  // We do expect memory to be continuous
-  // doesn't work with naive sand
-  unsigned *sand_one_array = &sand[0][0];
-  bool changement = true;
-  int chunk_stagned;
-  int mod4;
-  int div4;
-  int block_size = 3;
-  int nb_chunk = DIM / block_size;
-  if (DIM % block_size != 0)
-    nb_chunk += 1;
-
-  int chunk[nb_chunk];
-  memset(chunk, 1, nb_chunk);
-
-  int start_offset;
-  while(changement == true){
-    changement = false;
-    start_offset = DIM+1;
-    for(int chunk_iter=0; chunk_iter < nb_chunk; ++chunk_iter)
-      {
-	if (chunk[chunk_iter]){
-	  chunk_stagned = 0;
-	  for (int cursor = DIM*block_size*chunk_iter+start_offset;
-	       cursor < DIM*DIM && cursor < DIM*block_size*(chunk_iter+1)-1;
-	       ++cursor)
-	    {
-	      if(sand_one_array[cursor] >= 4) {
-		changement = true;
-		chunk_stagned = 1;
-		mod4 = sand_one_array[cursor] % 4;
-		div4 = sand_one_array[cursor] / 4;
-		sand_one_array[cursor] = mod4;
-		sand_one_array[cursor - DIM] += div4;
-		chunk[(cursor - DIM )/(DIM*block_size)] = 1;
-		sand_one_array[cursor + DIM] += div4;
-		chunk[(cursor + DIM )/(DIM*block_size)] = 1;
-		sand_one_array[cursor - 1] += div4;
-		sand_one_array[cursor + 1] += div4;
-	      }
-	    }
-
-	  chunk[chunk_iter] = chunk_stagned;
-	}
-	start_offset = 0;
-      }
-  }
-  return changement;
-}
-
-static inline int compute_eucl (sand_t sand)
+static inline int compute_eucl_chunk (sand_t sand)
 {
   int changement = 0;
   int mod4;
@@ -204,7 +152,7 @@ static inline int compute_eucl (sand_t sand)
   for (int i=0;i<nb_chunk;++i)
     chunk[i]=1;
   int start=1;
-  for (int chunk_iter = 0; chunk_iter < nb_chunk; ++chunk_iter){
+  for (int chunk_iter = 0; chunk_iter < nb_chunk; ++chunk_iter) {
     if (!chunk[chunk_iter])
       continue;
     chunk[chunk_iter] = 0;
@@ -237,8 +185,42 @@ static inline int compute_eucl (sand_t sand)
 	}
 #endif
       }
-    }
+      }
     start=0;
+  }
+  return changement;
+}
+
+static inline int compute_eucl (sand_t sand)
+{
+  int changement = 0;
+  int mod4;
+  int div4;
+  for (int y = 1; y < DIM-1; ++y) {
+    for (int x = 1; x < DIM-1; ++x) {
+#if MAX_HEIGHT != 4
+      if(sand[y][x] >= MAX_HEIGHT) {
+	changement = 1;
+	mod4 = sand[y][x] % MAX_HEIGHT;
+	div4 = sand[y][x] / MAX_HEIGHT;
+	sand[y][x] = mod4;
+	sand[y-1][x] += div4;
+	sand[y+1][x] += div4;
+	sand[y][x-1] += div4;
+	sand[y][x+1] += div4;
+      }
+#else
+      switch(!(div4=sand[y][x] >> 2)){
+      case 0:
+	changement = 1;
+	sand[y][x] &= 3;
+	sand[y-1][x] += div4;
+	sand[y+1][x] += div4;
+	sand[y][x-1] += div4;
+	sand[y][x+1] += div4;
+      }
+#endif
+    }
   }
   return changement;
 }
@@ -295,6 +277,8 @@ static inline int compute_omp (sand_t sand)
 	  mysand[y][x] = val;
 	}
       } // END PARALLEL FOR
+
+      // SYNCHRONISATION
       if (changement) {
 #pragma omp for schedule(static, chunk)
 	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk-!myid; y++) {
@@ -367,6 +351,9 @@ int main (int argc, char **argv)
 
   ref_time = fmin(ref_time,
 		  process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
+
+  ref_time = fmin(ref_time,
+		  process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, true));
 
   //process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, false);
 
