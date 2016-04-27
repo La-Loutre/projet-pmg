@@ -543,13 +543,12 @@ static inline int compute_omp_sem (sand_t sand)
    ref_time = process("SEQ REF", ref, ref, compute_naive, ref_time, true);
 
    ref_time = fmin(ref_time,
-		   process ("SEQ EUCL", ref, sand, compute_eucl, ref_time, true));
+		   process ("SEQ EUCL",
+			    ref, sand, compute_eucl, ref_time, true));
 
    ref_time = fmin(ref_time,
-		   process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk,
-			    ref_time, true));
-
-   //process ("SEQ EUCL CHUNK", ref, sand, compute_eucl_chunk, ref_time, false);
+		   process ("SEQ EUCL CHUNK",
+			    ref, sand, compute_eucl_chunk, ref_time, true));
 
    // NOTE: We use best sequential time for reference
    process ("PAR OMP", ref, sand, compute_omp, ref_time, false);
