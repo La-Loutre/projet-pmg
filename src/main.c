@@ -312,7 +312,7 @@ static inline int compute_omp (sand_t sand)
       }
       nbiter+=1;
     } while(changement);
-    fprintf(stderr,"NBI %d\n",nbiter);
+    //fprintf(stderr,"NBI %d\n",nbiter);
   } // END PARALLEL
   return changement;
 }
@@ -403,7 +403,7 @@ static inline int compute_omp_sem (sand_t sand)
 
     sand_t current = aux;
     int myid = omp_get_thread_num();
-    fprintf(stderr, "thread 0%d\n",myid);
+    //fprintf(stderr, "thread 0%d\n",myid);
     int chunk = (DIM-2) / nthreads;
     int read = 0;
     int write = 1;
@@ -465,7 +465,7 @@ static inline int compute_omp_sem (sand_t sand)
             nbiter+=1;
 
     } while(changement);
-       fprintf(stderr,"NBI %d\n",nbiter);
+    //fprintf(stderr,"NBI %d\n",nbiter);
  } // END PARALLEL
   free(*aux);
   free(aux);
@@ -486,7 +486,7 @@ static inline int compute_omp_sem (sand_t sand)
 
  int main (int argc, char **argv)
  {
-   omp_set_num_threads(4);
+   omp_set_num_threads(8);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
