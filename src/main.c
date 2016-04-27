@@ -31,7 +31,7 @@
   ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
 
 
-static unsigned **create_sand_array(int size)
+static sand_t create_sand_array(int size)
 {
   unsigned *raw_sand_array = malloc(sizeof(unsigned*) * size * size);
   unsigned **two_dim_sand_array = malloc(sizeof(unsigned**) * size);
@@ -386,21 +386,28 @@ static inline int compute_omp_sem (sand_t sand)
   int niterations;
   int changement = 0;
   int nthreads = omp_get_max_threads();
-  sand_t aux = (sand_t)create_sand_array(DIM);
+  sand_t aux = create_sand_array(DIM);
+  //memset(*aux, 0, DIM*DIM);
+  for (int i=0;i< DIM;++i)
+    for(int y = 0;y< DIM;++y)
+      aux[i][y]=0;
   sand_t swaptab[2] = {sand, aux};
 
-  sem_t locks[nthreads-1];
+  sem_t *locks = malloc(sizeof(sem_t)*nthreads-1);
   for (int i = 0; i < nthreads-1; i++)
-    sem_init(&locks[i], 0, 0);
+    assert(sem_init(&locks[i], 0, 0) ==0);
 
-#pragma omp parallel shared(changement,locks)
+
+#pragma omp parallel shared(changement)
   {
+
     sand_t current = aux;
     int myid = omp_get_thread_num();
     fprintf(stderr, "thread 0%d\n",myid);
     int chunk = (DIM-2) / nthreads;
-    int swapbool = 0;
-       int nbiter=0;
+    int read = 0;
+    int write = 1;
+    int nbiter=0;
 
 
     sand_t read_from,write_to;
@@ -421,13 +428,13 @@ static inline int compute_omp_sem (sand_t sand)
 	else
 	  last = first + chunk-1;
 
-		fprintf(stderr, "thread 0%d y %d first %d last %d\n",
-		myid, y, first, last);
+		/* fprintf(stderr, "thread 0%d y %d first %d last %d\n", */
+		/* myid, y, first, last); */
 
 	// WAIT
 	if (y == last && last != DIM-2) {
 	  //fprintf(stderr, "%d\n", last);
-	  sem_wait(&locks[chunk_number]);
+	  assert(sem_wait(&locks[chunk_number]) == 0);
 	}
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = read_from[y][x];
@@ -436,10 +443,15 @@ static inline int compute_omp_sem (sand_t sand)
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  changement = changement | (val >> 2);
 	  val %= MAX_HEIGHT;
+	  fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x);
+	  fprintf(stderr,"VAL = %d",val);
+	  fprintf(stderr,"RF = %d",read_from[y][x]);
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
 	    + read_from[y][x+1] / 4;
+
+	  fprintf(stderr, "nbiter %d chunk %d y %d x %d\n", nbiter, chunk_number, y, x);
 	  write_to[y][x] = val;
 	}
 	// POST
@@ -447,16 +459,16 @@ static inline int compute_omp_sem (sand_t sand)
 	  assert(nthreads-1 > chunk_number-1);
 	  assert(chunk_number >=0);
 
-	  assert (!sem_post(&locks[chunk_number-1]));
+	  assert (sem_post(&locks[chunk_number-1])==0);
 	  //	    fprintf(stderr, "%d\n", first);
 	}
 
 
-
-
       } // END PARALLEL FOR
-      read_from = swaptab[(++swapbool)%2];
-      write_to = swaptab[(swapbool-1)%2];
+      read = 1 - read;
+      write = 1 - write;
+      read_from = swaptab[read];
+      write_to = swaptab[write];
 
       // #pragma omp barrier
             nbiter+=1;
@@ -466,11 +478,12 @@ static inline int compute_omp_sem (sand_t sand)
  } // END PARALLEL
   free(*aux);
   free(aux);
+  free(locks);
   return changement;
-  }
+    }
 
 
- static unsigned **create_sand_array_naive(int size)
+ static sand_t create_sand_array_naive(int size)
  {
    unsigned **sand_array = malloc(sizeof(unsigned*) * size);
    for(int i = 0; i < size; i++)
@@ -482,11 +495,11 @@ static inline int compute_omp_sem (sand_t sand)
 
  int main (int argc, char **argv)
  {
-   omp_set_num_threads(2);
+   omp_set_num_threads(1);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
-   unsigned **sand = create_sand_array(DIM);
+   sand_t sand = create_sand_array(DIM);
    sand_init (sand);
 
 #if METHOD == SEQEUCL
