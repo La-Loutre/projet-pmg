@@ -82,27 +82,10 @@ static inline int compute_eucl (sand_t sand)
   int change = 0;
   int mod4;
   int div4;
-  __m128i div4_simd,raw_value_simd,mod_simd,previousline_simd,
-    nextline_simd,new_value_simd,simd_div,simd_div_mask,simd_shift,
-    simd_mod_mask;
-  int value_mod = 3;
-  int value_div = 0x3FFFFFFF;
-  int value_div_mask[4] ={value_div,
-			  value_div,
-			  value_div,
-			  value_div};
-  int value_mod_mask[4] = {value_mod,
-			   value_mod,
-			   value_mod,
-			   value_mod};
-  int shift[4] = {2,0,0,0}; //bit inversion
-  simd_shift = _mm_loadu_si128(&shift);
-  simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
-  simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
 
   for (int y = 1; y < DIM-1; ++y) {
-    for (int x = 1; x < DIM-1; x++) {
-#if MAX_HEIGHT == 4
+    for (int x = 1; x < DIM-1; ++x) {
+#if MAX_HEIGHT != 4
       if(sand[y][x] >= MAX_HEIGHT) {
 	change = 1;
 	mod4 = sand[y][x] % MAX_HEIGHT;
@@ -115,12 +98,68 @@ static inline int compute_eucl (sand_t sand)
       }
 #else
 
-      for (int i=0;i<4;++i){
-	div4=sand[y][x+i] >> 2;
-	change |=div4;
+      switch((div4=sand[y][x] >> 2)){
+      case 0:
+	continue;
+      default:
+	change = 1;
+	sand[y][x] &= 3;
+	sand[y-1][x] += div4;
+	sand[y+1][x] += div4;
+	sand[y][x-1] += div4;
+	sand[y][x+1] += div4;
+
       }
-      int TESTT[4];
-      //change |= div4;
+#endif
+    }
+  }
+  return change;
+}
+
+static inline int compute_eucl_vector (sand_t sand)
+{
+  //FIXME: Only work with multiple of vector size
+  int change = 1;
+  int mod4;
+  int div4;
+  __m128i div4_simd,raw_value_simd,mod_simd,previousline_simd,
+    nextline_simd,new_value_simd,simd_div,simd_div_mask,simd_shift,simd_shift2,
+    simd_mod_mask;
+  int value_mod = 3;
+  int value_div = 0x3FFFFFFF;
+  int value_div_mask[4] ={value_div,
+			  value_div,
+			  value_div,
+			  value_div};
+  int value_mod_mask[4] = {value_mod,
+			   value_mod,
+			   value_mod,
+			   value_mod};
+  int shift[4] = {2,0,0,0}; //bit inversion
+  int shift2[4] = {32,0,0,0};
+  int TESTT[4];
+  simd_shift = _mm_loadu_si128(&shift);
+  simd_shift2 = _mm_loadu_si128(&shift2);
+  simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
+  simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
+
+  while(change){
+    change = 0;
+
+  for (int y = 1; y < DIM-1; ++y) {
+    for (int x = 1; x < DIM-1; x+=4) {
+#if MAX_HEIGHT != 4
+      if(sand[y][x] >= MAX_HEIGHT) {
+	change = 1;
+	mod4 = sand[y][x] % MAX_HEIGHT;
+	div4 = sand[y][x] / MAX_HEIGHT;
+	sand[y][x] = mod4;
+	sand[y-1][x] += div4;
+	sand[y+1][x] += div4;
+	sand[y][x-1] += div4;
+	sand[y][x+1] += div4;
+      }
+#else
       /* SSE part */
       /*
        * SSE doesn't provide integer
@@ -174,27 +213,34 @@ static inline int compute_eucl (sand_t sand)
       _mm_storeu_si128(&sand[y-1][x],previousline_simd);
       //Store back next line
       _mm_storeu_si128(&sand[y+1][x],nextline_simd);
-      //store back current line (4 elements)
+
       _mm_storeu_si128(&sand[y][x],new_value_simd);
       _mm_storeu_si128(&TESTT,div4_simd);
-      int x1_tmp,x2_tmp,x3_tmp;
 
-      //First and last element can be done
-      //directly (x-1 -> x+4)
-      sand[y][x-1] += sand[y][x];
-      sand[y][x+4] += sand[y][x+3];
 
-      //For others line we must
-      // do a swap before
-      x1_tmp = sand[y][x+1];
 
-      sand[y][x+1] += sand[y][x] + sand[y][x+2];
-      sand[y][x] += x1_tmp;
+      sand[y][x-1] += TESTT[0];
+      sand[y][x+4] += TESTT[3];
+      sand[y][x+1] += TESTT[0] + TESTT[2];
+      sand[y][x] += TESTT[1];
+      sand[y][x+2] += TESTT[1] + TESTT[3];
+      sand[y][x+3] += TESTT[2];
+      change = change | TESTT[0] | TESTT[1] | TESTT[2] | TESTT[3];
+      /* //First and last element can be done */
+      /* //directly (x-1 -> x+4) */
+      /* sand[y][x-1] += sand[y][x]; */
+      /* sand[y][x+4] += sand[y][x+3]; */
 
-      x2_tmp = sand[y][x+2];
-      sand[y][x+2] += x1_tmp+sand[y][x+3];
+      /* //For others line we must */
+      /* // do a swap before */
+      /* x1_tmp = sand[y][x+1]; */
 
-      sand[y][x+3] += x2_tmp;
+      /* sand[y][x+1] += sand[y][x] + sand[y][x+2]; */
+      /* sand[y][x] += x1_tmp; */
+      /* x2_tmp = sand[y][x+2]; */
+      /* sand[y][x+2] += x1_tmp+sand[y][x+3]; */
+
+      /* sand[y][x+3] += x2_tmp; */
 
       //div4=sand[y][x] >> 2;
       //change |= div4;
@@ -206,6 +252,7 @@ static inline int compute_eucl (sand_t sand)
 
 #endif
     }
+  }
   }
   return change;
 }
@@ -467,14 +514,14 @@ static inline int compute_omp_sem (sand_t sand)
    ref_time = process("SEQ REF",
    		      ref, ref, compute_naive, ref_time, true, repeat);
 
-   /* ref_time = fmin(ref_time, */
-   /* 		   process ("SEQ EUCL", */
-   /* 			    ref, sand, compute_eucl, ref_time, true, repeat)); */
+   ref_time = fmin(ref_time,
+   		   process ("SEQ EUCL",
+   			    ref, sand, compute_eucl, ref_time,true, repeat));
 
-   /* ref_time = fmin(ref_time, */
-   /* 		   process ("SEQ EUCL CHUNK", */
-   /* 			    ref, sand, compute_eucl_chunk, ref_time, */
-   /* 			    true, repeat)); */
+   ref_time = fmin(ref_time,
+   		   process ("SEQ EUCL VECTOR",
+   			    ref, sand, compute_eucl_vector, ref_time,
+   			    false, repeat));
 
    /* // NOTE: We use best sequential time for reference */
    /* process ("PAR OMP", */
