@@ -1,165 +1,29 @@
+#include <assert.h>
 #include <math.h>
 #include <omp.h>
+#include <semaphore.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <semaphore.h>
 #include <sys/time.h>
 #include <tgmath.h>
-#include <assert.h>
 #include <emmintrin.h>
 #include <immintrin.h>
+
 #include "display.h"
+#include "sand.h"
+#include "vector.h"
 
 #define _XOPEN_SOURCE 600
-
-#define ANSI_COLOR_RED     "\x1b[31m"
-#define ANSI_COLOR_GREEN   "\x1b[32m"
-#define ANSI_COLOR_RESET   "\x1b[0m"
 
 #define TEST 0
 #define SEQEUCL 1
 #define PAROMP 2
 #define PAROMPSEM 3
 
-#define FIVE_PILES 1
-#define ONE_PILE 2
-
 #define MAX_HEIGHT 4
 
-#define TIME_DIFF(t1, t2)						\
-  ((t2.tv_sec - t1.tv_sec) * 1000000 + (t2.tv_usec - t1.tv_usec))
-
-
-static sand_t create_sand_array(int size)
-{
-  unsigned *raw_sand_array = malloc(sizeof(unsigned*) * size * size);
-  unsigned **two_dim_sand_array = malloc(sizeof(unsigned**) * size);
-  for (int i = 0; i < size; ++i)
-    two_dim_sand_array[i] = &raw_sand_array[i*size];
-  return two_dim_sand_array;
-
-}
-
-// vecteur de pixel renvoyé par compute
-struct {
-  float R, G, B;
-} couleurs[DIM][DIM];
-
-unsigned get (unsigned x, unsigned y, sand_t sand)
-{
-  return sand[y][x];
-}
-
-#if CASE == FIVE_PILES
-// on met du sable dans chaque case
-static void sand_init (sand_t sand)
-{
-  for (int y = 0; y < DIM; y++)
-    for (int x = 0; x < DIM; x++) {
-      if (y == 0 || y == DIM-1 || x == 0 || x == DIM-1)
-	sand[y][x] = 0;
-      else
-	sand[y][x] = MAX_HEIGHT + 1;
-    }
-}
-#endif
-
-#if CASE == ONE_PILE
-// on construit un seul gros tas de sable
-static void sand_init (sand_t sand)
-{
-  for (int y = 0; y < DIM; y++)
-    for (int x = 0; x < DIM; x++) {
-      sand[y][x] = 0;
-    }
-  sand[DIM/2][DIM/2] = 100000;
-}
-#endif
-
-void print_matrix(sand_t sand, int size)
-{
-  // NOTE: we don't print the edges
-  for(int i = 1; i < size-1; i++) {
-    for(int j = 1; j < size-1; j++) {
-      printf("%2d ", sand[i][j]);
-    }
-    printf("\n");
-  }
-}
-
-bool check(sand_t ref, sand_t sand)
-{
-  // NOTE: we don't check the edges
-  for(int i = 1; i < DIM-1; i++) {
-    for(int j = 1; j < DIM-1; j++) {
-      if (ref[i][j] != sand[i][j])
-	return false;
-    }
-  }
-  return true;
-}
-
-void timeandcheck(char *name,
-		  unsigned long ref_time,
-		  unsigned long compute_time,
-		  sand_t ref,
-		  sand_t sand)
-{
-  fprintf(stderr, "%s %ld.%03ld ms ",
-	  name, compute_time/1000, compute_time%1000);
-
-  double speedup;
-  if (ref_time == 0)
-    speedup = 1;
-  else {
-    speedup = ref_time;
-    speedup /= compute_time;
-  }
-  fprintf(stderr, "%.1f× ", speedup);
-
-  if (check(ref, sand))
-    fprintf(stderr,"%sSUCCESS%s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
-  else
-    fprintf(stderr,"%sFAILURE%s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
-}
-
-unsigned long process(char *name,
-		      sand_t ref,
-		      sand_t sand,
-		      compute_func_t compute,
-		      unsigned long ref_time,
-		      bool loop,
-		      int repeat)
-{
-  struct timeval t1, t2;
-  unsigned long compute_time = 0;
-  for (int i = 0; i < repeat; i++) {
-    sand_init (sand);
-    gettimeofday (&t1, NULL);
-    if (loop)
-      while(compute(sand));
-    else
-      compute(sand);
-    gettimeofday (&t2, NULL);
-    compute_time += TIME_DIFF(t1, t2);
-  }
-  compute_time /= repeat;
-  timeandcheck(name, ref_time, compute_time, ref, sand);
-  return compute_time;
-}
-
-float *iterate(compute_func_t compute_func,
-	       unsigned iterations,
-	       sand_t sand)
-{
-  for (unsigned i = 0; i < iterations; i++) {
-    if (compute_func(sand) == false)
-      break;
-  }
-  return DYNAMIC_COLORING;
-}
 
 static inline int compute_eucl_chunk (sand_t sand)
 {
@@ -263,8 +127,8 @@ static inline int compute_eucl_vector (sand_t sand)
     nextline_simd,new_value_simd,simd_div,simd_div_mask,simd_shift,simd_shift2,
     simd_mod_mask;
   int value_mod = 3;
-  int value_div = 0x3FFFFFFF; 
-  int value_div_mask[4] ={value_div, 
+  int value_div = 0x3FFFFFFF;
+  int value_div_mask[4] ={value_div,
 			  value_div,
 			  value_div,
 			  value_div};
@@ -279,8 +143,10 @@ static inline int compute_eucl_vector (sand_t sand)
   simd_shift2 = _mm_loadu_si128(&shift2);
   simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
   simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
+
   while(change){
     change = 0;
+    
   for (int y = 1; y < DIM-1; ++y) {
     for (int x = 1; x < DIM-1; x+=4) {
 #if MAX_HEIGHT != 4
@@ -295,25 +161,23 @@ static inline int compute_eucl_vector (sand_t sand)
 	sand[y][x+1] += div4;
       }
 #else
-
-      //change |= div4; 
       /* SSE part */
       /*
-       * SSE doesn't provide integer 
+       * SSE doesn't provide integer
        * by integer division.
        * We have to trick
        * div4=sand[y][x] >> 2; for 4 elements
        */
       //Copy 4 element into 128b vector (integer)
       raw_value_simd = _mm_loadu_si128(&sand[y][x]);
-      //Shift right 2 bits for each .  
+      //Shift right 2 bits for each .
       // 1 * 8 = 2*4
       div4_simd = _mm_srl_epi32(raw_value_simd,simd_shift);
       // We have to delete overflow by
       // applying a mask (and 00...0011 000...11 000...11)
       div4_simd = _mm_and_si128(div4_simd,simd_div_mask);
-      
-      /* 
+
+      /*
        * Now we have to do mod
        * We just apply a 3 mask already prepared
        * and its our new value
@@ -323,8 +187,8 @@ static inline int compute_eucl_vector (sand_t sand)
 				     simd_mod_mask);
 
       /*
-       * Upper and lower lines are easy to 
-       * do because we never share y,x couple 
+       * Upper and lower lines are easy to
+       * do because we never share y,x couple
        * with our new_value_simd
        * sand[y-1][x] += div4;
        * sand[y+1][x] += div4;
@@ -335,15 +199,15 @@ static inline int compute_eucl_vector (sand_t sand)
       					div4_simd);
       nextline_simd = _mm_add_epi32(nextline_simd,
       				    div4_simd);
-      
-      
+
+
       /*
        * For element on same line its different:
        * [... , x , x1  , x2   , x3  , ...]
        * [x-1 , x , x+1 , x+2  , x+3 , x+4]
        * [x   , x1, x+x2, x1+x3, x2  , x3 ]
        *
-       * So we must store back data from vector 
+       * So we must store back data from vector
        * register to memory
        */
       //Store back previous line
@@ -353,6 +217,7 @@ static inline int compute_eucl_vector (sand_t sand)
 
       _mm_storeu_si128(&sand[y][x],new_value_simd);
       _mm_storeu_si128(&TESTT,div4_simd);
+
 
       
       sand[y][x-1] += TESTT[0];
@@ -373,20 +238,19 @@ static inline int compute_eucl_vector (sand_t sand)
       
       /* sand[y][x+1] += sand[y][x] + sand[y][x+2]; */
       /* sand[y][x] += x1_tmp; */
-
       /* x2_tmp = sand[y][x+2]; */
       /* sand[y][x+2] += x1_tmp+sand[y][x+3]; */
 
       /* sand[y][x+3] += x2_tmp; */
 
-      //div4=sand[y][x] >> 2; 
-      //change |= div4; 
+      //div4=sand[y][x] >> 2;
+      //change |= div4;
       /* sand[y][x] &= 3; */
       /* sand[y-1][x] += div4; */
       /* sand[y+1][x] += div4; */
       /* sand[y][x-1] += div4; */
       /* sand[y][x+1] += div4; */
-    
+
 #endif
     }
   }
@@ -600,19 +464,8 @@ static inline int compute_omp_sem (sand_t sand)
 }
 
 
- static sand_t create_sand_array_naive(int size)
- {
-   unsigned **sand_array = malloc(sizeof(unsigned*) * size);
-   for(int i = 0; i < size; i++)
-     sand_array[i] = malloc(size * sizeof(unsigned));
-   return sand_array;
-
- }
-
-
  int main (int argc, char **argv)
  {
-   omp_set_num_threads(8);
    omp_set_nested(1);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
@@ -678,6 +531,10 @@ static inline int compute_omp_sem (sand_t sand)
    /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
    process ("PAR OMP SEM",
    	    ref, sand, compute_omp_sem, ref_time, false, repeat);
+
+   fprintf(stderr,"\n");
+   sand_init(sand);
+   start(sand, true, true);
 
    fprintf(stderr,"\n");
 
