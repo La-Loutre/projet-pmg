@@ -10,6 +10,7 @@
 
 #include "util.h"
 #include "vector.h"
+#include "sand.h"
 
 #define MAX_PLATFORMS 3
 #define MAX_DEVICES   5
@@ -24,6 +25,7 @@ unsigned SIZE = DIM * DIM;
 unsigned TILE = 16;
 
 unsigned *input_data, *output_data;
+sand_t ref, sand;
 
 cl_mem input_buffer;  // device memory used for input data
 cl_mem output_buffer;  // device memory used for output data
@@ -32,12 +34,8 @@ cl_mem output_buffer;  // device memory used for output data
 static void alloc_buffers_and_user_data(cl_context context)
 {
   // CPU side
-  input_data = malloc(SIZE * sizeof(unsigned));
+  input_data = &sand[0][0];
   output_data = malloc(SIZE * sizeof(unsigned));
-
-  for(int i = 0; i < SIZE; i++)
-    // XXX: on met 5 ici
-    input_data[i] = 5;
 
   // Allocate buffers inside device memory
   input_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) * SIZE, NULL, NULL);
@@ -49,23 +47,14 @@ static void alloc_buffers_and_user_data(cl_context context)
     error("Failed to allocate output buffer");
 }
 
- static void check_output_data(void)
- {
-  unsigned correct = 0;
-
-  for(int i = 0; i < SIZE; i++) {
-  unsigned expected = input_data[i];
-
-  if(output_data[i] == expected)
-    correct++;
-}
-  printf("\tComputed '%d/%d' correct values!\n", correct, SIZE);
+static void check_output_data()
+{
+  check_matrix(ref, sand);
 }
 
  static void free_buffers_and_user_data(void)
  {
-  free(input_data);
-  free(output_data);
+   free(output_data);
 
   clReleaseMemObject(input_buffer);
   clReleaseMemObject(output_buffer);
@@ -89,7 +78,7 @@ static void alloc_buffers_and_user_data(cl_context context)
   check(err, "Failed to read output array");
 }
 
- void start(sand_t sand, bool cpu, bool gpu)
+void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool gpu)
  {
   cl_platform_id pf[MAX_PLATFORMS];
   cl_uint nb_platforms = 0;
@@ -102,6 +91,9 @@ static void alloc_buffers_and_user_data(cl_context context)
     device_type = CL_DEVICE_TYPE_GPU;
   else
     device_type = CL_DEVICE_TYPE_CPU;
+
+  ref = inref;
+  sand = insand;
 
   // Get list of OpenCL platforms detected
   err = clGetPlatformIDs(3, pf, &nb_platforms);
@@ -179,7 +171,6 @@ static void alloc_buffers_and_user_data(cl_context context)
   check(err, "Failed to create compute kernel");
 
   // Allocate and initialize input data
-  //input_data = &sand[0][0];
   alloc_buffers_and_user_data(context);
 
   // Iterate over devices

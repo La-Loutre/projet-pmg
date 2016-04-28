@@ -30,7 +30,7 @@ sand.o: sand.c sand.h type.h
 
 display.o: display.c display.h type.h
 
-vector.o: vector.c util.h type.h
+vector.o: vector.c util.h type.h sand.h
 
 util.o: util.h
 

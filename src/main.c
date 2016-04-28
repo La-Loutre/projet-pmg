@@ -24,7 +24,6 @@
 
 #define MAX_HEIGHT 4
 
-
 static inline int compute_eucl_chunk (sand_t sand)
 {
   int change = 0;
@@ -468,26 +467,26 @@ static inline int compute_omp_sem (sand_t sand)
    ref_time = process("SEQ REF",
    		      ref, ref, compute_naive, ref_time, true, repeat);
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL",
-   			    ref, sand, compute_eucl, ref_time, true, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL", */
+   /* 			    ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL CHUNK",
-   			    ref, sand, compute_eucl_chunk, ref_time,
-   			    true, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL CHUNK", */
+   /* 			    ref, sand, compute_eucl_chunk, ref_time, */
+   /* 			    true, repeat)); */
 
-   // NOTE: We use best sequential time for reference
-   process ("PAR OMP",
-   	    ref, sand, compute_omp, ref_time, false, repeat);
-   /* process ("PAR OMP TILE", */
-   /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
-   process ("PAR OMP SEM",
-   	    ref, sand, compute_omp_sem, ref_time, false, repeat);
+   /* // NOTE: We use best sequential time for reference */
+   /* process ("PAR OMP", */
+   /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
+   /* /\* process ("PAR OMP TILE", *\/ */
+   /* /\* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
+   /* process ("PAR OMP SEM", */
+   /* 	    ref, sand, compute_omp_sem, ref_time, false, repeat); */
 
    fprintf(stderr,"\n");
    sand_init(sand);
-   start(sand, true, true);
+   start(ref, sand, ref_time, true, true);
 
    fprintf(stderr,"\n");
 

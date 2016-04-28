@@ -8,7 +8,7 @@
 unsigned get (unsigned x, unsigned y, sand_t sand);
 void sand_init (sand_t sand);
 void print_matrix(sand_t sand, int size);
-bool check(sand_t ref, sand_t sand);
+bool check_matrix(sand_t ref, sand_t sand);
 void timeandcheck(char *name, unsigned long ref_time,
 		  unsigned long compute_time,
 		  sand_t ref,

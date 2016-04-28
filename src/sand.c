@@ -71,7 +71,7 @@ void print_matrix(sand_t sand, int size)
   }
 }
 
-bool check(sand_t ref, sand_t sand)
+bool check_matrix(sand_t ref, sand_t sand)
 {
   // NOTE: we don't check the edges
   for(int i = 1; i < DIM-1; i++) {
@@ -101,7 +101,7 @@ void timeandcheck(char *name,
   }
   fprintf(stderr, "%.1f× ", speedup);
 
-  if (check(ref, sand))
+  if (check_matrix(ref, sand))
     fprintf(stderr,"%sSUCCESS%s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
     fprintf(stderr,"%sFAILURE%s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);

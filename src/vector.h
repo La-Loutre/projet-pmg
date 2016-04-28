@@ -3,6 +3,6 @@
 
 #include "type.h"
 
-void start(sand_t sand, bool cpu, bool gpu);
+void start(sand_t ref, sand_t sand, unsigned long ref_time, bool cpu, bool gpu);
 
 #endif
