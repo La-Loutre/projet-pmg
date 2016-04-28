@@ -347,8 +347,9 @@ static inline int compute_omp_sem (sand_t sand)
 #pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	int chunk_number = (y-1) / chunk;
-	//If nthreads not a multiple of DIM
-	if (chunk_number >= nthreads) //Always false (prediction)
+	// if nthreads is not a multiple of DIM
+	// NOTE: one incrorrect branch prediction at maximum
+	if (chunk_number >= nthreads)
 	  chunk_number = nthreads -1;
 	int first = chunk_number * chunk + 1;
 	int last;
@@ -358,7 +359,7 @@ static inline int compute_omp_sem (sand_t sand)
 	  last = first + chunk-1;
 
 	// WAIT
-	// NOTE: incorrect branch prediction two times at maximum
+	// NOTE: two incorrect branch predictions at maximum
 	if (y == last && last != DIM-2) {
 	  assert(sem_wait(&locks[chunk_number]) == 0);
 	}
@@ -377,7 +378,7 @@ static inline int compute_omp_sem (sand_t sand)
 	  write_to[y][x] = val;
 	}
 	// POST
-	// NOTE: incorrect wrong branch prediction two times at maximum
+	// NOTE: two incorrect branch predictions at maximum
 	if (y == first && first != 1) {
 	  assert(nthreads-1 > chunk_number-1);
 	  assert(chunk_number >= 0);
