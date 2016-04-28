@@ -425,6 +425,9 @@ static inline int compute_omp_sem (sand_t sand)
 #pragma omp for schedule(static, chunk) reduction(|:changement)
       for (int y = 1; y < DIM-1; y++) {
 	int chunk_number = (y-1) / chunk;
+	//If nthreads not a multiple of DIM
+	if (chunk_number >= nthreads) //Always false (prediction)
+	  chunk_number = nthreads -1;
 	int first = chunk_number * chunk + 1;
 	int last;
 	if (nthreads-1 == chunk_number)
@@ -442,7 +445,7 @@ static inline int compute_omp_sem (sand_t sand)
 	  // UPDATE
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  changement = changement | (val >> 2);
-	  val %= MAX_HEIGHT;
+	  val &= 3 ;
 
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
@@ -533,7 +536,7 @@ static inline int compute_omp_sem (sand_t sand)
 #if METHOD == TEST
    unsigned **ref = create_sand_array(DIM);
    unsigned long ref_time = 0;
-   int repeat = 1;
+   int repeat = 10;
 
    // NOTE: We use naive compute time for reference
    ref_time = process("SEQ REF",
