@@ -220,10 +220,10 @@ static inline int compute_eucl (sand_t sand)
   int mod4;
   int div4;
   __m128i div4_simd,raw_value_simd,mod_simd,previousline_simd,
-    nextline_simd,new_value_simd,simd_div,simd_div_mask,
+    nextline_simd,new_value_simd,simd_div,simd_div_mask,simd_shift,
     simd_mod_mask;
   int value_mod = 3;
-  int value_div = 0xC0000000; //32 bits value
+  int value_div = 0x3FFFFFFF; 
   int value_div_mask[4] ={value_div, 
 			  value_div,
 			  value_div,
@@ -232,11 +232,13 @@ static inline int compute_eucl (sand_t sand)
 			   value_mod,
 			   value_mod,
 			   value_mod};
+  int shift[4] = {2,0,0,0}; //bit inversion
+  simd_shift = _mm_loadu_si128(&shift);
   simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
   simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
   
   for (int y = 1; y < DIM-1; ++y) {
-    for (int x = 1; x < DIM-1; x+=4) {
+    for (int x = 1; x < DIM-1; x++) {
 #if MAX_HEIGHT == 4
       if(sand[y][x] >= MAX_HEIGHT) {
 	change = 1;
@@ -254,7 +256,7 @@ static inline int compute_eucl (sand_t sand)
 	div4=sand[y][x+i] >> 2;
 	change |=div4;
       }
-      
+      int TESTT[4];
       //change |= div4; 
       /* SSE part */
       /*
@@ -265,11 +267,12 @@ static inline int compute_eucl (sand_t sand)
        */
       //Copy 4 element into 128b vector (integer)
       raw_value_simd = _mm_loadu_si128(&sand[y][x]);
-      //Shift right 2 bits. 
-      div4_simd = _mm_srli_si128(raw_value_simd,2);
+      //Shift right 2 bits for each .  
+      // 1 * 8 = 2*4
+      div4_simd = _mm_srl_epi32(raw_value_simd,simd_shift);
       // We have to delete overflow by
-      // applying a mask (xor 11000...11000...11000...11000)
-      div4_simd = _mm_xor_si128(div4_simd,simd_div_mask);
+      // applying a mask (and 00...0011 000...11 000...11)
+      div4_simd = _mm_and_si128(div4_simd,simd_div_mask);
       
       /* 
        * Now we have to do mod
@@ -289,11 +292,12 @@ static inline int compute_eucl (sand_t sand)
        */
       previousline_simd = _mm_loadu_si128(&sand[y-1][x]);
       nextline_simd = _mm_loadu_si128(&sand[y+1][x]);
-      previousline_simd = _mm_add_epi64(previousline_simd,
-					div4_simd);
-      nextline_simd = _mm_add_epi64(nextline_simd,
-				    div4_simd);
-
+      previousline_simd = _mm_add_epi32(previousline_simd,
+      					div4_simd);
+      nextline_simd = _mm_add_epi32(nextline_simd,
+      				    div4_simd);
+      
+      
       /*
        * For element on same line its different:
        * [... , x , x1  , x2   , x3  , ...]
@@ -306,10 +310,10 @@ static inline int compute_eucl (sand_t sand)
       //Store back previous line
       _mm_storeu_si128(&sand[y-1][x],previousline_simd);
       //Store back next line
-      _mm_storeu_si128(&sand[y+1][x],previousline_simd);
+      _mm_storeu_si128(&sand[y+1][x],nextline_simd);
       //store back current line (4 elements)
       _mm_storeu_si128(&sand[y][x],new_value_simd);
-
+      _mm_storeu_si128(&TESTT,div4_simd);
       int x1_tmp,x2_tmp,x3_tmp;
 
       //First and last element can be done
