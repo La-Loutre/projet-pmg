@@ -24,6 +24,48 @@
 
 #define MAX_HEIGHT 4
 
+static inline int compute_eucl_swap (sand_t sand)
+{
+  int change = 0;
+  sand_t aux = create_sand_array(DIM);
+
+  // We will read the edges, so they should be set to 0
+  memset(*aux, 0, DIM*DIM*sizeof(unsigned));
+
+  sand_t swap[2] = {sand, aux};
+  sand_t read_from, write_to;
+  read_from = swap[0];
+  write_to = swap[1];
+  int read = 0;
+  int write = 1;
+
+  do {
+    change = 0;
+    for (int y = 1; y < DIM-1; y++) {
+      for (int x = 1; x < DIM-1; x++) {
+	int val = read_from[y][x];
+	// NOTE: works only if MAX_HEIGHT == 4
+	change = change | (val >> 2);
+	val &= 3 ;
+	val += read_from[y-1][x] / 4
+	  + read_from[y+1][x] / 4
+	  + read_from[y][x-1] / 4
+	  + read_from[y][x+1] / 4;
+
+	write_to[y][x] = val;
+      }
+    }
+    read = 1 - read;
+    write = 1 - write;
+    read_from = swap[read];
+    write_to = swap[write];
+  } while(change);
+
+  free(*aux);
+  free(aux);
+  return change;
+}
+
 static inline int compute_eucl_chunk (sand_t sand)
 {
   int change = 0;
@@ -32,6 +74,7 @@ static inline int compute_eucl_chunk (sand_t sand)
   int chunk_size = 2;
   int nb_chunk = DIM / chunk_size ;
   int chunk[nb_chunk];
+
   for (int i=0;i<nb_chunk;++i)
     chunk[i]=1;
   int start=1;
@@ -39,6 +82,7 @@ static inline int compute_eucl_chunk (sand_t sand)
     if (!chunk[chunk_iter])
       continue;
     chunk[chunk_iter] = 0;
+
     for (int y = chunk_iter*chunk_size+start; y < DIM-1 && y < chunk_iter*chunk_size+start+chunk_size; ++y)
       {
 	for (int x = 1; x < DIM-1; ++x){
@@ -78,7 +122,6 @@ static inline int compute_eucl_chunk (sand_t sand)
 
 static inline int compute_eucl (sand_t sand)
 {
-
   int change = 0;
   int mod4;
   int div4;
@@ -97,7 +140,6 @@ static inline int compute_eucl (sand_t sand)
 	sand[y][x+1] += div4;
       }
 #else
-
       switch((div4=sand[y][x] >> 2)){
       case 0:
 	continue;
@@ -375,9 +417,8 @@ static inline int compute_omp_tile (sand_t sand)
   return change;
 }
 
-static inline int compute_omp_sem (sand_t sand)
+static inline int compute_omp_swap (sand_t sand)
 {
-  int niterations;
   int change = 0;
   int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
@@ -411,7 +452,7 @@ static inline int compute_omp_sem (sand_t sand)
       for (int y = 1; y < DIM-1; y++) {
 	int chunk_number = (y-1) / chunk;
 	// if nthreads is not a multiple of DIM
-	// NOTE: one incrorrect branch prediction at maximum
+	// NOTE: two incrorrect branch predictions at maximum
 	if (chunk_number >= nthreads)
 	  chunk_number = nthreads -1;
 	int first = chunk_number * chunk + 1;
@@ -462,6 +503,139 @@ static inline int compute_omp_sem (sand_t sand)
   return change;
 }
 
+static inline int compute_omp_swap_nowait (sand_t sand)
+{
+  int nthreads = omp_get_max_threads();
+  sand_t aux = create_sand_array(DIM);
+
+  // We will read the edges, so they should be set to 0
+  memset(*aux, 0, DIM*DIM*sizeof(unsigned));
+
+  sand_t swap[2] = {sand, aux};
+
+  sem_t *toto = malloc(sizeof(sem_t));
+  sem_init(toto, 0, 0);
+  sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1));
+  for (int i = 0; i < nthreads-1; i++)
+    assert(sem_init(&locks[i], 0, 0) ==0);
+
+  int change = nthreads;
+  int last_change = 0;
+  bool last_iteration = false;
+
+#pragma omp parallel
+  {
+    sand_t read_from, write_to;
+    read_from = swap[0];
+    write_to = swap[1];
+
+    int myid = omp_get_thread_num();
+    int chunk = (DIM-2) / nthreads;
+    int read = 0;
+    int write = 1;
+    int mychange;
+
+    do {
+      mychange = 0;
+#pragma omp for schedule(static, chunk)
+      for (int y = 1; y < DIM-1; y++) {
+	int chunk_number = (y-1) / chunk;
+	// if nthreads is not a multiple of DIM
+	// NOTE: two incrorrect branch predictions at maximum
+	if (chunk_number >= nthreads)
+	  chunk_number = nthreads -1;
+	int first = chunk_number * chunk + 1;
+	int last;
+	if (chunk_number == nthreads-1)
+	  last = DIM-2;
+	else
+	  last = first + chunk-1;
+
+	// WAIT
+	// NOTE: two incorrect branch predictions at maximum
+	if (y == last && last != DIM-2) {
+	  assert(sem_wait(&locks[chunk_number]) == 0);
+	}
+	for (int x = 1; x < DIM-1; x++) {
+	  int val = read_from[y][x];
+
+	  // UPDATE
+	  // NOTE: works only if MAX_HEIGHT == 4
+	  mychange = mychange | (val >> 2);
+	  val &= 3 ;
+	  val += read_from[y-1][x] / 4
+	    + read_from[y+1][x] / 4
+	    + read_from[y][x-1] / 4
+	    + read_from[y][x+1] / 4;
+
+	  write_to[y][x] = val;
+	}
+	// POST
+	// NOTE: two incorrect branch predictions at maximum
+	if (y == first && first != 1) {
+	  assert(nthreads-1 > chunk_number-1);
+	  assert(chunk_number >= 0);
+	  assert (sem_post(&locks[chunk_number-1]) == 0);
+	}
+
+      } // END PARALLEL FOR
+
+      // prepare for next iteration
+      read = 1 - read;
+      write = 1 - write;
+      read_from = swap[read];
+      write_to = swap[write];
+
+      if (!last_iteration) {
+	// we continue until our chunk is balanced
+	if (mychange != 0)
+	  continue;
+
+	else {
+	  int tmp;
+#pragma omp atomic capture
+	  tmp = --change;
+	  // we wait for the last thread to finish
+	  if (tmp != 0)
+	    sem_wait(toto);
+	  else {
+	    // we make a last iteration to be sure nobody can make changes
+	    last_iteration = true;
+	    for (int i = 0; i < nthreads-1; i++)
+	      sem_post(toto);
+	  }
+	}
+      }
+
+      // a last iteration is made to be sure the changes from the last
+      // thread had no impact on the rest of the threads
+      else {
+#pragma omp atomic update
+	last_change |= mychange;
+#pragma omp barrier
+	if (last_change == 0)
+	  break; // END DO WHILE
+	else {
+	  // someone has still some work to do
+#pragma omp pragma single // barrier
+	  {
+	    change = nthreads;
+	    last_change = 0;
+	    last_iteration = false;
+	  }
+	  continue;
+	}
+      }
+
+
+    } while(true);
+ } // END PARALLEL
+  free(*aux);
+  free(aux);
+  free(locks);
+  return change;
+}
+
 
  int main (int argc, char **argv)
  {
@@ -500,7 +674,7 @@ static inline int compute_omp_sem (sand_t sand)
 		 MAX_HEIGHT,
 		 get,
 		 iterate,
-		 compute_omp_sem,
+		 compute_omp_swap,
 		 sand);
    return 0;
 #endif // METHOD PAR OMP SEM
@@ -510,30 +684,42 @@ static inline int compute_omp_sem (sand_t sand)
    unsigned long ref_time = 0;
    int repeat = 1;
 
-   // NOTE: We use naive compute time for reference
+   // NOTE: We use the previous best compute time for reference
+
    ref_time = process("SEQ REF",
    		      ref, ref, compute_naive, ref_time, true, repeat);
 
    ref_time = fmin(ref_time,
    		   process ("SEQ EUCL",
-   			    ref, sand, compute_eucl, ref_time,true, repeat));
+   			    ref, sand, compute_eucl, ref_time, true, repeat));
+
+   ref_time = fmin(ref_time,
+   		   process ("SEQ EUCL SWAP",
+   			    ref, sand, compute_eucl_swap, ref_time,
+			    false, repeat));
 
    ref_time = fmin(ref_time,
    		   process ("SEQ EUCL VECTOR",
    			    ref, sand, compute_eucl_vector, ref_time,
    			    false, repeat));
 
-   /* // NOTE: We use best sequential time for reference */
-   /* process ("PAR OMP", */
-   /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
-   /* /\* process ("PAR OMP TILE", *\/ */
-   /* /\* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
-   /* process ("PAR OMP SEM", */
-   /* 	    ref, sand, compute_omp_sem, ref_time, false, repeat); */
+   // NOTE: We use best sequential time for reference
 
-   fprintf(stderr,"\n");
-   sand_init(sand);
-   start(ref, sand, ref_time, true, true);
+   process ("PAR OMP",
+   	    ref, sand, compute_omp, ref_time, false, repeat);
+
+   /* process ("PAR OMP TILE", */
+   /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
+
+   process ("PAR OMP SWAP",
+   	    ref, sand, compute_omp_swap, ref_time, false, repeat);
+
+   /* process ("PAR OMP SWAP NOWAIT", */
+   /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+
+   /* fprintf(stderr,"\n"); */
+   /* sand_init(sand); */
+   /* start(ref, sand, ref_time, true, true); */
 
    fprintf(stderr,"\n");
 
