@@ -78,11 +78,11 @@ static void sand_init (sand_t sand)
 }
 #endif
 
-void afficher(sand_t sand)
+void print_matrix(sand_t sand, int size)
 {
   // NOTE: we don't print the edges
-  for(int i = 1; i < DIM-1; i++) {
-    for(int j = 1; j < DIM-1; j++) {
+  for(int i = 1; i < size-1; i++) {
+    for(int j = 1; j < size-1; j++) {
       printf("%2d ", sand[i][j]);
     }
     printf("\n");
@@ -359,6 +359,56 @@ static inline int compute_omp (sand_t sand)
   return change;
 }
 
+static inline int compute_omp_tile (sand_t sand)
+{
+  int change = 0;
+#pragma omp parallel shared(change)
+  {
+    int nthreads = omp_get_num_threads();
+    int myid = omp_get_thread_num();
+    int chunk = (DIM-2)/nthreads/2;
+    unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
+
+    do {
+#pragma omp barrier
+#pragma omp single // barrier
+      change = 0;
+
+#pragma omp for schedule(static, chunk) reduction(|:change) collapse(2)
+      for (int y = 1; y < DIM-1; y++) {
+	for (int x = 1; x < DIM-1; x++) {
+	  int val = sand[y][x];
+#if MAX_HEIGHT != 4
+	  if (val >= MAX_HEIGHT)
+	    change = 1;
+#else
+	  // NOTE: works only if MAX_HEIGHT == 4
+	  change = change | (val >> 2);
+#endif
+	  val %= MAX_HEIGHT;
+	  val += sand[y-1][x] / 4
+	    + sand[y+1][x] / 4
+	    + sand[y][x-1] / 4
+	    + sand[y][x+1] / 4;
+	  mysand[y][x] = val;
+	}
+      } // END PARALLEL FOR
+
+#pragma omp barrier
+      // SYNCHRONISATION
+      if (change) {
+#pragma omp for schedule(static, chunk) collapse(2)
+	for (int y = 1; y < DIM-1; y++) {
+	  for (int x = 1; x < DIM-1; x++) {
+	    sand[y][x] = mysand[y][x];
+	  }
+	} // END PARALLEL FOR
+      }
+    } while(change);
+  } // END PARALLEL
+  return change;
+}
+
 static inline int compute_omp_sem (sand_t sand)
 {
   int niterations;
@@ -394,8 +444,9 @@ static inline int compute_omp_sem (sand_t sand)
 #pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	int chunk_number = (y-1) / chunk;
-	//If nthreads not a multiple of DIM
-	if (chunk_number >= nthreads) //Always false (prediction)
+	// if nthreads is not a multiple of DIM
+	// NOTE: one incrorrect branch prediction at maximum
+	if (chunk_number >= nthreads)
 	  chunk_number = nthreads -1;
 	int first = chunk_number * chunk + 1;
 	int last;
@@ -405,7 +456,7 @@ static inline int compute_omp_sem (sand_t sand)
 	  last = first + chunk-1;
 
 	// WAIT
-	// NOTE: incorrect branch prediction two times at maximum
+	// NOTE: two incorrect branch predictions at maximum
 	if (y == last && last != DIM-2) {
 	  assert(sem_wait(&locks[chunk_number]) == 0);
 	}
@@ -424,13 +475,12 @@ static inline int compute_omp_sem (sand_t sand)
 	  write_to[y][x] = val;
 	}
 	// POST
-	// NOTE: incorrect wrong branch prediction two times at maximum
+	// NOTE: two incorrect branch predictions at maximum
 	if (y == first && first != 1) {
 	  assert(nthreads-1 > chunk_number-1);
 	  assert(chunk_number >= 0);
 	  assert (sem_post(&locks[chunk_number-1]) == 0);
 	}
-
 
       } // END PARALLEL FOR
       read = 1 - read;
@@ -460,6 +510,7 @@ static inline int compute_omp_sem (sand_t sand)
  int main (int argc, char **argv)
  {
    omp_set_num_threads(8);
+   omp_set_nested(1);
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
@@ -502,28 +553,31 @@ static inline int compute_omp_sem (sand_t sand)
 #if METHOD == TEST
    unsigned **ref = create_sand_array(DIM);
    unsigned long ref_time = 0;
-   int repeat = 10;
+   int repeat = 1;
 
    // NOTE: We use naive compute time for reference
    ref_time = process("SEQ REF",
-		      ref, ref, compute_naive, ref_time, true, repeat);
+   		      ref, ref, compute_naive, ref_time, true, repeat);
 
    ref_time = fmin(ref_time,
-		   process ("SEQ EUCL",
-			    ref, sand, compute_eucl, ref_time, true, repeat));
+   		   process ("SEQ EUCL",
+   			    ref, sand, compute_eucl, ref_time, true, repeat));
 
    ref_time = fmin(ref_time,
-		   process ("SEQ EUCL CHUNK",
-			    ref, sand, compute_eucl_chunk, ref_time,
-			    true, repeat));
+   		   process ("SEQ EUCL CHUNK",
+   			    ref, sand, compute_eucl_chunk, ref_time,
+   			    true, repeat));
 
    // NOTE: We use best sequential time for reference
    process ("PAR OMP",
-	    ref, sand, compute_omp, ref_time, false, repeat);
+   	    ref, sand, compute_omp, ref_time, false, repeat);
+   /* process ("PAR OMP TILE", */
+   /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
    process ("PAR OMP SEM",
-	    ref, sand, compute_omp_sem, ref_time, false, repeat);
+   	    ref, sand, compute_omp_sem, ref_time, false, repeat);
 
    fprintf(stderr,"\n");
-   return 0;
+
+  return 0;
 #endif // METHOD TEST
  }
