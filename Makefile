@@ -1,7 +1,7 @@
 MAKE= make -C src
 BINDIR= bin
 
-all:
+all: test
 	$(MAKE) clean
 	$(MAKE) METHOD=1 CASE=1 DIM=128
 	$(MAKE) clear
@@ -44,8 +44,10 @@ test:
 	$(MAKE) METHOD=0 CASE=2 DIM=258
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=514
-	# OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d6
-	# OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d6
+
+run: test
+# OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d6
+# OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d6
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d128
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d128
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d258
