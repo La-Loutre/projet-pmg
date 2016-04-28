@@ -77,7 +77,7 @@ static void sand_init (sand_t sand)
 }
 #endif
 
-void afficher(sand_t sand, int size)
+void print_matrix(sand_t sand, int size)
 {
   // NOTE: we don't print the edges
   for(int i = 1; i < size-1; i++) {
