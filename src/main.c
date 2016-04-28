@@ -8,9 +8,10 @@
 #include <string.h>
 #include <sys/time.h>
 #include <tgmath.h>
+#include <emmintrin.h>
+#include <immintrin.h>
 
 #include "display.h"
-//#include "computecl.h"
 #include "sand.h"
 #include "vector.h"
 
@@ -54,8 +55,10 @@ static inline int compute_eucl_chunk (sand_t sand)
 	    sand[y][x+1] += div4;
 	  }
 #else
-	  switch(!(div4=sand[y][x] >> 2)){
+	  switch((div4=sand[y][x] >> 2)){
 	  case 0:
+	    continue;
+	  default:
 	    change = 1;
 	    chunk[y/chunk_size] = 1;
 	    chunk[(y-1)/chunk_size] |= div4;
@@ -76,12 +79,31 @@ static inline int compute_eucl_chunk (sand_t sand)
 
 static inline int compute_eucl (sand_t sand)
 {
+
   int change = 0;
   int mod4;
   int div4;
+  __m128i div4_simd,raw_value_simd,mod_simd,previousline_simd,
+    nextline_simd,new_value_simd,simd_div,simd_div_mask,simd_shift,
+    simd_mod_mask;
+  int value_mod = 3;
+  int value_div = 0x3FFFFFFF;
+  int value_div_mask[4] ={value_div,
+			  value_div,
+			  value_div,
+			  value_div};
+  int value_mod_mask[4] = {value_mod,
+			   value_mod,
+			   value_mod,
+			   value_mod};
+  int shift[4] = {2,0,0,0}; //bit inversion
+  simd_shift = _mm_loadu_si128(&shift);
+  simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
+  simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
+
   for (int y = 1; y < DIM-1; ++y) {
-    for (int x = 1; x < DIM-1; ++x) {
-#if MAX_HEIGHT != 4
+    for (int x = 1; x < DIM-1; x++) {
+#if MAX_HEIGHT == 4
       if(sand[y][x] >= MAX_HEIGHT) {
 	change = 1;
 	mod4 = sand[y][x] % MAX_HEIGHT;
@@ -93,15 +115,96 @@ static inline int compute_eucl (sand_t sand)
 	sand[y][x+1] += div4;
       }
 #else
-      switch(!(div4=sand[y][x] >> 2)){
-      case 0:
-	change = 1;
-	sand[y][x] &= 3;
-	sand[y-1][x] += div4;
-	sand[y+1][x] += div4;
-	sand[y][x-1] += div4;
-	sand[y][x+1] += div4;
+
+      for (int i=0;i<4;++i){
+	div4=sand[y][x+i] >> 2;
+	change |=div4;
       }
+      int TESTT[4];
+      //change |= div4;
+      /* SSE part */
+      /*
+       * SSE doesn't provide integer
+       * by integer division.
+       * We have to trick
+       * div4=sand[y][x] >> 2; for 4 elements
+       */
+      //Copy 4 element into 128b vector (integer)
+      raw_value_simd = _mm_loadu_si128(&sand[y][x]);
+      //Shift right 2 bits for each .
+      // 1 * 8 = 2*4
+      div4_simd = _mm_srl_epi32(raw_value_simd,simd_shift);
+      // We have to delete overflow by
+      // applying a mask (and 00...0011 000...11 000...11)
+      div4_simd = _mm_and_si128(div4_simd,simd_div_mask);
+
+      /*
+       * Now we have to do mod
+       * We just apply a 3 mask already prepared
+       * and its our new value
+       * sand[y][x] &= 3; for 4 elements
+       */
+      new_value_simd = _mm_and_si128(raw_value_simd,
+				     simd_mod_mask);
+
+      /*
+       * Upper and lower lines are easy to
+       * do because we never share y,x couple
+       * with our new_value_simd
+       * sand[y-1][x] += div4;
+       * sand[y+1][x] += div4;
+       */
+      previousline_simd = _mm_loadu_si128(&sand[y-1][x]);
+      nextline_simd = _mm_loadu_si128(&sand[y+1][x]);
+      previousline_simd = _mm_add_epi32(previousline_simd,
+      					div4_simd);
+      nextline_simd = _mm_add_epi32(nextline_simd,
+      				    div4_simd);
+
+
+      /*
+       * For element on same line its different:
+       * [... , x , x1  , x2   , x3  , ...]
+       * [x-1 , x , x+1 , x+2  , x+3 , x+4]
+       * [x   , x1, x+x2, x1+x3, x2  , x3 ]
+       *
+       * So we must store back data from vector
+       * register to memory
+       */
+      //Store back previous line
+      _mm_storeu_si128(&sand[y-1][x],previousline_simd);
+      //Store back next line
+      _mm_storeu_si128(&sand[y+1][x],nextline_simd);
+      //store back current line (4 elements)
+      _mm_storeu_si128(&sand[y][x],new_value_simd);
+      _mm_storeu_si128(&TESTT,div4_simd);
+      int x1_tmp,x2_tmp,x3_tmp;
+
+      //First and last element can be done
+      //directly (x-1 -> x+4)
+      sand[y][x-1] += sand[y][x];
+      sand[y][x+4] += sand[y][x+3];
+
+      //For others line we must
+      // do a swap before
+      x1_tmp = sand[y][x+1];
+
+      sand[y][x+1] += sand[y][x] + sand[y][x+2];
+      sand[y][x] += x1_tmp;
+
+      x2_tmp = sand[y][x+2];
+      sand[y][x+2] += x1_tmp+sand[y][x+3];
+
+      sand[y][x+3] += x2_tmp;
+
+      //div4=sand[y][x] >> 2;
+      //change |= div4;
+      /* sand[y][x] &= 3; */
+      /* sand[y-1][x] += div4; */
+      /* sand[y+1][x] += div4; */
+      /* sand[y][x-1] += div4; */
+      /* sand[y][x+1] += div4; */
+
 #endif
     }
   }
