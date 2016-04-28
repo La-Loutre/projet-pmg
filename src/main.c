@@ -162,7 +162,7 @@ float *iterate(compute_func_t compute_func,
 
 static inline int compute_eucl_chunk (sand_t sand)
 {
-  int changement = 0;
+  int change = 0;
   int mod4;
   int div4;
   int chunk_size = 2;
@@ -180,7 +180,7 @@ static inline int compute_eucl_chunk (sand_t sand)
 	for (int x = 1; x < DIM-1; ++x){
 #if MAX_HEIGHT != 4
 	  if(sand[y][x] >= MAX_HEIGHT) {
-	    changement = 1;
+	    change = 1;
 	    mod4 = sand[y][x] % MAX_HEIGHT;
 	    div4 = sand[y][x] / MAX_HEIGHT;
 	    sand[y][x] = mod4;
@@ -192,7 +192,7 @@ static inline int compute_eucl_chunk (sand_t sand)
 #else
 	  switch(!(div4=sand[y][x] >> 2)){
 	  case 0:
-	    changement = 1;
+	    change = 1;
 	    chunk[y/chunk_size] = 1;
 	    chunk[(y-1)/chunk_size] |= div4;
 	    chunk[(y+1)/chunk_size] |= div4;
@@ -207,19 +207,19 @@ static inline int compute_eucl_chunk (sand_t sand)
       }
     start=0;
   }
-  return changement;
+  return change;
 }
 
 static inline int compute_eucl (sand_t sand)
 {
-  int changement = 0;
+  int change = 0;
   int mod4;
   int div4;
   for (int y = 1; y < DIM-1; ++y) {
     for (int x = 1; x < DIM-1; ++x) {
 #if MAX_HEIGHT != 4
       if(sand[y][x] >= MAX_HEIGHT) {
-	changement = 1;
+	change = 1;
 	mod4 = sand[y][x] % MAX_HEIGHT;
 	div4 = sand[y][x] / MAX_HEIGHT;
 	sand[y][x] = mod4;
@@ -231,7 +231,7 @@ static inline int compute_eucl (sand_t sand)
 #else
       switch(!(div4=sand[y][x] >> 2)){
       case 0:
-	changement = 1;
+	change = 1;
 	sand[y][x] &= 3;
 	sand[y-1][x] += div4;
 	sand[y+1][x] += div4;
@@ -241,17 +241,17 @@ static inline int compute_eucl (sand_t sand)
 #endif
     }
   }
-  return changement;
+  return change;
 }
 
 static inline int compute_naive (sand_t sand)
 {
-  int changement = 0;
+  int change = 0;
   for (int y = 1; y < DIM-1; y++)
     {
       for (int x = 1; x < DIM-1; x++)
 	if(sand[y][x] >= 4) {
-	  changement = 1;
+	  change = 1;
 	  sand[y][x] -= 4;
 	  sand[y-1][x] += 1;
 	  sand[y+1][x] += 1;
@@ -259,14 +259,14 @@ static inline int compute_naive (sand_t sand)
 	  sand[y][x+1] += 1;
 	}
     }
-  return changement;
+  return change;
 }
 
 static inline int compute_omp (sand_t sand)
 {
   int niterations;
-  int changement = 0;
-#pragma omp parallel shared(changement)
+  int change = 0;
+#pragma omp parallel shared(change)
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
@@ -280,19 +280,19 @@ static inline int compute_omp (sand_t sand)
 
 #pragma omp barrier
 #pragma omp single // barrier
-      changement = 0;
+      change = 0;
 
 
-#pragma omp for schedule(static, chunk) reduction(|:changement)
+#pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = sand[y][x];
 #if MAX_HEIGHT != 4
 	  if (val >= MAX_HEIGHT)
-	    changement = 1;
+	    change = 1;
 #else
 	  // NOTE: works only if MAX_HEIGHT == 4
-	  changement = changement | (val >> 2);
+	  change = change | (val >> 2);
 #endif
 	  val %= MAX_HEIGHT;
 	  val += sand[y-1][x] / 4
@@ -305,7 +305,7 @@ static inline int compute_omp (sand_t sand)
 
 #pragma omp barrier
       // SYNCHRONISATION
-      if (changement) {
+      if (change) {
 #pragma omp for schedule(static, chunk)
 	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk; y++) {
 	for (int y = 1; y < DIM-1; y++) {
@@ -315,17 +315,17 @@ static inline int compute_omp (sand_t sand)
 	} // END PARALLEL FOR
       }
       nbiter+=1;
-    } while(changement);
+    } while(change);
     //fprintf(stderr,"NBI %d\n",nbiter);
   } // END PARALLEL
-  return changement;
+  return change;
 }
 
 /* static inline int compute_omp_synch (sand_t sand) */
 /* { */
 /*   int niterations = 1; */
-/*   int changement = 0; */
-/* #pragma omp parallel shared(changement) */
+/*   int change = 0; */
+/* #pragma omp parallel shared(change) */
 /*   { */
 /*     int nthreads = omp_get_num_threads(); */
 /*     int myid = omp_get_thread_num(); */
@@ -338,9 +338,9 @@ static inline int compute_omp (sand_t sand)
 
 /* #pragma omp barrier */
 /* #pragma omp single // barrier */
-/*       changement = 0; */
+/*       change = 0; */
 
-/*       int mychangement = 0; */
+/*       int mychange = 0; */
 /*       for (int it = 0; it < niterations; it++) { */
 
 /* #pragma omp for schedule(static, chunk) nowait */
@@ -349,10 +349,10 @@ static inline int compute_omp (sand_t sand)
 /* 	    int val = sand[y][x]; */
 /* #if MAX_HEIGHT != 4 */
 /* 	    if (val >= MAX_HEIGHT) */
-/* 	      mychangement = 1; */
+/* 	      mychange = 1; */
 /* #else */
 /* 	    // NOTE: works only if MAX_HEIGHT == 4 */
-/* 	    mychangement = mychangement | (val >> 2); */
+/* 	    mychange = mychange | (val >> 2); */
 /* #endif */
 /* 	    val %= MAX_HEIGHT; */
 /* 	    val += sand[y-1][x] / 4 */
@@ -365,11 +365,11 @@ static inline int compute_omp (sand_t sand)
 /*       } // END ITERATE */
 
 /* #pragma omp atomic update */
-/*       changement |= mychangement; */
+/*       change |= mychange; */
 
 /* #pragma omp barrier */
 /*       // SYNCHRONISATION */
-/*       if (changement) { */
+/*       if (change) { */
 /* #pragma omp for schedule(static, chunk) */
 /* 	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk; y++) { */
 /* 	for (int y = 1; y < DIM-1; y++) { */
@@ -378,9 +378,9 @@ static inline int compute_omp (sand_t sand)
 /* 	  } */
 /* 	} // END PARALLEL FOR */
 /*       } */
-/*     } while(changement); */
+/*     } while(change); */
 /*   } // END PARALLEL */
-/*   return changement; */
+/*   return change; */
 /* } */
 
 static inline int compute_omp_sem (sand_t sand)
@@ -388,7 +388,7 @@ static inline int compute_omp_sem (sand_t sand)
 
   // NOTE: condition prediction false two times at maximum
   int niterations;
-  int changement = 0;
+  int change = 0;
   int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
   //memset(*aux, 0, DIM*DIM);
@@ -402,7 +402,7 @@ static inline int compute_omp_sem (sand_t sand)
     assert(sem_init(&locks[i], 0, 0) ==0);
 
 
-#pragma omp parallel shared(changement)
+#pragma omp parallel shared(change)
   {
 
     sand_t current = aux;
@@ -420,9 +420,9 @@ static inline int compute_omp_sem (sand_t sand)
     do {
 #pragma omp barrier
 #pragma omp single // barrier
-      changement = 0;
+      change = 0;
 
-#pragma omp for schedule(static, chunk) reduction(|:changement)
+#pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	int chunk_number = (y-1) / chunk;
 	int first = chunk_number * chunk + 1;
@@ -441,7 +441,7 @@ static inline int compute_omp_sem (sand_t sand)
 
 	  // UPDATE
 	  // NOTE: works only if MAX_HEIGHT == 4
-	  changement = changement | (val >> 2);
+	  change = change | (val >> 2);
 	  val %= MAX_HEIGHT;
 
 	  val += read_from[y-1][x] / 4
@@ -468,13 +468,13 @@ static inline int compute_omp_sem (sand_t sand)
       // #pragma omp barrier
             nbiter+=1;
 
-    } while(changement);
+    } while(change);
     //fprintf(stderr,"NBI %d\n",nbiter);
  } // END PARALLEL
   free(*aux);
   free(aux);
   free(locks);
-  return changement;
+  return change;
     }
 
 
