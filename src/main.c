@@ -264,24 +264,18 @@ static inline int compute_naive (sand_t sand)
 
 static inline int compute_omp (sand_t sand)
 {
-  int niterations;
   int change = 0;
 #pragma omp parallel shared(change)
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
     int chunk = (DIM-2)/nthreads;
-    int nbiter=0;
-    unsigned mysand [DIM][DIM]; // NOTE: base pointer inc, should be fast
-    //memset(&mysand, 0, DIM*DIM);
+    unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
 
     do {
-
-
 #pragma omp barrier
 #pragma omp single // barrier
       change = 0;
-
 
 #pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
@@ -307,116 +301,44 @@ static inline int compute_omp (sand_t sand)
       // SYNCHRONISATION
       if (change) {
 #pragma omp for schedule(static, chunk)
-	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk; y++) {
 	for (int y = 1; y < DIM-1; y++) {
 	  for (int x = 1; x < DIM-1; x++) {
 	    sand[y][x] = mysand[y][x];
 	  }
 	} // END PARALLEL FOR
       }
-      nbiter+=1;
     } while(change);
-    //fprintf(stderr,"NBI %d\n",nbiter);
   } // END PARALLEL
   return change;
 }
 
-/* static inline int compute_omp_synch (sand_t sand) */
-/* { */
-/*   int niterations = 1; */
-/*   int change = 0; */
-/* #pragma omp parallel shared(change) */
-/*   { */
-/*     int nthreads = omp_get_num_threads(); */
-/*     int myid = omp_get_thread_num(); */
-/*     int chunk = DIM/nthreads; */
-/*     unsigned mysand [DIM][DIM]; // NOTE: base pointer inc, should be fast */
-/*     //memset(&mysand, 0, DIM*DIM); */
-
-/*     do { */
-
-
-/* #pragma omp barrier */
-/* #pragma omp single // barrier */
-/*       change = 0; */
-
-/*       int mychange = 0; */
-/*       for (int it = 0; it < niterations; it++) { */
-
-/* #pragma omp for schedule(static, chunk) nowait */
-/* 	for (int y = 1; y < DIM-1; y++) { */
-/* 	  for (int x = 1; x < DIM-1; x++) { */
-/* 	    int val = sand[y][x]; */
-/* #if MAX_HEIGHT != 4 */
-/* 	    if (val >= MAX_HEIGHT) */
-/* 	      mychange = 1; */
-/* #else */
-/* 	    // NOTE: works only if MAX_HEIGHT == 4 */
-/* 	    mychange = mychange | (val >> 2); */
-/* #endif */
-/* 	    val %= MAX_HEIGHT; */
-/* 	    val += sand[y-1][x] / 4 */
-/* 	      + sand[y+1][x] / 4 */
-/* 	      + sand[y][x-1] / 4 */
-/* 	      + sand[y][x+1] / 4; */
-/* 	    mysand[y][x] = val; */
-/* 	  } */
-/* 	} // END PARALLEL FOR */
-/*       } // END ITERATE */
-
-/* #pragma omp atomic update */
-/*       change |= mychange; */
-
-/* #pragma omp barrier */
-/*       // SYNCHRONISATION */
-/*       if (change) { */
-/* #pragma omp for schedule(static, chunk) */
-/* 	//for (int y = myid*chunk+!myid; y < (myid+1)*chunk; y++) { */
-/* 	for (int y = 1; y < DIM-1; y++) { */
-/* 	  for (int x = 1; x < DIM-1; x++) { */
-/* 	    sand[y][x] = mysand[y][x]; */
-/* 	  } */
-/* 	} // END PARALLEL FOR */
-/*       } */
-/*     } while(change); */
-/*   } // END PARALLEL */
-/*   return change; */
-/* } */
-
 static inline int compute_omp_sem (sand_t sand)
 {
-
-  // NOTE: condition prediction false two times at maximum
   int niterations;
   int change = 0;
   int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
-  //memset(*aux, 0, DIM*DIM);
-  for (int i=0;i< DIM;++i)
-    for(int y = 0;y< DIM;++y)
-      aux[i][y]=0;
-  sand_t swaptab[2] = {sand, aux};
+
+  // We will read the edges, so they should be set to 0
+  memset(*aux, 0, DIM*DIM*sizeof(unsigned));
+
+  sand_t swap[2] = {sand, aux};
 
   sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1));
   for (int i = 0; i < nthreads-1; i++)
     assert(sem_init(&locks[i], 0, 0) ==0);
 
-
 #pragma omp parallel shared(change)
   {
+    sand_t read_from, write_to;
+    read_from = swap[0];
+    write_to = swap[1];
 
-    sand_t current = aux;
     int myid = omp_get_thread_num();
-    //fprintf(stderr, "thread 0%d\n",myid);
     int chunk = (DIM-2) / nthreads;
     int read = 0;
     int write = 1;
-    int nbiter=0;
 
-
-    sand_t read_from,write_to;
-    read_from = swaptab[0];
-    write_to = swaptab[1];
     do {
 #pragma omp barrier
 #pragma omp single // barrier
@@ -427,12 +349,13 @@ static inline int compute_omp_sem (sand_t sand)
 	int chunk_number = (y-1) / chunk;
 	int first = chunk_number * chunk + 1;
 	int last;
-	if (nthreads-1 == chunk_number)
+	if (chunk_number == nthreads-1)
 	  last = DIM-2;
 	else
 	  last = first + chunk-1;
 
 	// WAIT
+	// NOTE: incorrect branch prediction two times at maximum
 	if (y == last && last != DIM-2) {
 	  assert(sem_wait(&locks[chunk_number]) == 0);
 	}
@@ -442,8 +365,8 @@ static inline int compute_omp_sem (sand_t sand)
 	  // UPDATE
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  change = change | (val >> 2);
-	  val %= MAX_HEIGHT;
 
+	  val %= MAX_HEIGHT;
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
@@ -452,30 +375,27 @@ static inline int compute_omp_sem (sand_t sand)
 	  write_to[y][x] = val;
 	}
 	// POST
+	// NOTE: incorrect wrong branch prediction two times at maximum
 	if (y == first && first != 1) {
 	  assert(nthreads-1 > chunk_number-1);
-	  assert(chunk_number >=0);
-	  assert (sem_post(&locks[chunk_number-1])==0);
+	  assert(chunk_number >= 0);
+	  assert (sem_post(&locks[chunk_number-1]) == 0);
 	}
 
 
       } // END PARALLEL FOR
       read = 1 - read;
       write = 1 - write;
-      read_from = swaptab[read];
-      write_to = swaptab[write];
-
-      // #pragma omp barrier
-            nbiter+=1;
+      read_from = swap[read];
+      write_to = swap[write];
 
     } while(change);
-    //fprintf(stderr,"NBI %d\n",nbiter);
  } // END PARALLEL
   free(*aux);
   free(aux);
   free(locks);
   return change;
-    }
+}
 
 
  static sand_t create_sand_array_naive(int size)
