@@ -63,8 +63,8 @@ void sand_init (sand_t sand)
 void print_matrix(sand_t sand, int size)
 {
   // NOTE: we don't print the edges
-  for(int i = 1; i < size-1; i++) {
-    for(int j = 1; j < size-1; j++) {
+  for(int i = 0; i < size; i++) {
+    for(int j = 0; j < size; j++) {
       printf("%2d ", sand[i][j]);
     }
     printf("\n");

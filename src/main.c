@@ -637,6 +637,39 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 }
 
 
+void lol ()
+{
+  int nthreads = 2;
+  int size = 66;
+  int tile = 8;
+  int chunk = (size-2)/nthreads;
+  int nchunk = (size-2)/chunk;
+  int ntile = (size-2)/tile;
+
+  sand_t mysand = create_sand_array(size);
+  for (int y = 0; y < size; y++)
+    for (int x = 0; x < size; x++)
+      mysand[y][x] = 0;
+
+#pragma omp parallel num_threads(nthreads)
+  {
+    int cpt = 0;
+    int lol = 0;
+    int myid = omp_get_thread_num();
+#pragma omp for schedule(static, 1)
+    for (int c = 0; c < nchunk; c++)
+      for (int t = 0; t < ntile; t++)
+	for (int y = 0; y < chunk; y++)
+	  for (int x = 0; x < tile; x++) {
+	    int offset_chunk = c*chunk;
+	    int offset_tile = t*tile;
+	    cpt++;
+	    mysand[y+c*chunk+1][x+t*tile+1] = ++lol;
+	  }
+  }
+  print_matrix(mysand, size);
+}
+
  int main (int argc, char **argv)
  {
    omp_set_nested(1);
@@ -686,40 +719,42 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
    // NOTE: We use the previous best compute time for reference
 
-   ref_time = process("SEQ REF",
-   		      ref, ref, compute_naive, ref_time, true, repeat);
+   /* ref_time = process("SEQ REF", */
+   /* 		      ref, ref, compute_naive, ref_time, true, repeat); */
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL",
-   			    ref, sand, compute_eucl, ref_time, true, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL", */
+   /* 			    ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL SWAP",
-   			    ref, sand, compute_eucl_swap, ref_time,
-			    false, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL SWAP", */
+   /* 			    ref, sand, compute_eucl_swap, ref_time, */
+   /* 			    false, repeat)); */
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL VECTOR",
-   			    ref, sand, compute_eucl_vector, ref_time,
-   			    false, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL VECTOR", */
+   /* 			    ref, sand, compute_eucl_vector, ref_time, */
+   /* 			    false, repeat)); */
 
-   // NOTE: We use best sequential time for reference
+   /* // NOTE: We use best sequential time for reference */
 
-   process ("PAR OMP",
-   	    ref, sand, compute_omp, ref_time, false, repeat);
+   /* process ("PAR OMP", */
+   /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
 
-   /* process ("PAR OMP TILE", */
-   /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
+   /* /\* process ("PAR OMP TILE", *\/ */
+   /* /\* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
 
-   process ("PAR OMP SWAP",
-   	    ref, sand, compute_omp_swap, ref_time, false, repeat);
+   /* process ("PAR OMP SWAP", */
+   /* 	    ref, sand, compute_omp_swap, ref_time, false, repeat); */
 
-   /* process ("PAR OMP SWAP NOWAIT", */
-   /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+   /* /\* process ("PAR OMP SWAP NOWAIT", *\/ */
+   /* /\* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); *\/ */
 
-   /* fprintf(stderr,"\n"); */
-   /* sand_init(sand); */
-   /* start(ref, sand, ref_time, true, true); */
+   /* /\* fprintf(stderr,"\n"); *\/ */
+   /* /\* sand_init(sand); *\/ */
+   /* /\* start(ref, sand, ref_time, true, true); *\/ */
+
+   lol();
 
    fprintf(stderr,"\n");
 

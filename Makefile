@@ -48,8 +48,8 @@ test:
 run:
 # OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d6
 # OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d6
-	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d128
-	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d128
+	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d130
+	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d130
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d258
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d258
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d514
