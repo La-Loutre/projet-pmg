@@ -100,14 +100,15 @@ void timeandcheck(char *name,
     speedup = ref_time;
     speedup /= compute_time;
   }
-  fprintf(stderr, "%.1f× ", speedup);
+  fprintf(stderr, "%.2f× ", speedup);
 
-  int miss = check_matrix(ref, sand);
-  unsigned long pct = miss/((DIM-1)*(DIM-1))*100;
-  if (miss == 0)
-    fprintf(stderr,"%sSUCCESS%s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
+  int misses = check_matrix(ref, sand);
+  float size = (DIM-2)*(DIM-2);
+  float pct = (misses*100)/size;
+  if (misses == 0)
+    fprintf(stderr,"%sSUCCESS %s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%sFAILURE %ld%%s\n", ANSI_COLOR_RED, pct, ANSI_COLOR_RESET);
+    fprintf(stderr,"%sFAILURE%s (%.1f%% fails)\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, pct);
 }
 
 unsigned long process(char *name,
