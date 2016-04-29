@@ -8,11 +8,5 @@ __kernel void sandpiles(__global unsigned *sand,
   int X = get_group_id(0);
   int Y = get_group_id(1);
 
-  int mod4 = sand[y][x] % MAX_HEIGHT;
-  int div4 = sand[y][x] / MAX_HEIGHT;
-  sand[y][x] = mod4;
-  sand[y-1][x] += div4;
-  sand[y+1][x] += div4;
-  sand[y][x-1] += div4;
-  sand[y][x+1] += div4;
+  copy[y*DIM+x] = 5;
 }

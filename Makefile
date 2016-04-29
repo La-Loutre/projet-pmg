@@ -31,6 +31,8 @@ test:
 	$(MAKE) clean
 	$(MAKE) METHOD=0 CASE=1 DIM=6
 	$(MAKE) clear
+	$(MAKE) METHOD=0 CASE=1 DIM=128
+	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=1 DIM=130
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=1 DIM=258
@@ -38,6 +40,8 @@ test:
 	$(MAKE) METHOD=0 CASE=1 DIM=514
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=6
+	$(MAKE) clear
+	$(MAKE) METHOD=0 CASE=2 DIM=128
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=130
 	$(MAKE) clear

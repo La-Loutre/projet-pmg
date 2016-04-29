@@ -46,7 +46,7 @@ static inline int compute_eucl_swap (sand_t sand)
 	int val = read_from[y][x];
 	// NOTE: works only if MAX_HEIGHT == 4
 	change = change | (val >> 2);
-	val &= 3 ;
+	val &= 3;
 	val += read_from[y-1][x] / 4
 	  + read_from[y+1][x] / 4
 	  + read_from[y][x-1] / 4
@@ -760,17 +760,17 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
    // NOTE: We use the previous best compute time for reference
 
-   ref_time = process("SEQ REF",
-   		      ref, ref, compute_naive, ref_time, true, repeat);
+   /* ref_time = process("SEQ REF", */
+   /* 		      ref, ref, compute_naive, ref_time, true, repeat); */
 
    /* ref_time = fmin(ref_time, */
    /* 		   process ("SEQ EUCL", */
    /* 			    ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-   ref_time = fmin(ref_time,
-   		   process ("SEQ EUCL SWAP",
-   			    ref, sand, compute_eucl_swap, ref_time,
-   			    false, repeat));
+   /* ref_time = fmin(ref_time, */
+   /* 		   process ("SEQ EUCL SWAP", */
+   /* 			    ref, sand, compute_eucl_swap, ref_time, */
+   /* 			    false, repeat)); */
 
    /* ref_time = fmin(ref_time, */
    /* 		   process ("SEQ EUCL VECTOR", */
@@ -785,19 +785,19 @@ static inline int compute_omp_swap_nowait (sand_t sand)
    /* process ("PAR OMP TILE", */
    /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
 
-   process ("PAR OMP SWAP",
-   	    ref, sand, compute_omp_swap, ref_time, false, repeat);
+   /* process ("PAR OMP SWAP", */
+   /* 	    ref, sand, compute_omp_swap, ref_time, false, repeat); */
 
-   process ("PAR OMP SWAP TILE",
-   	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat);
+   /* process ("PAR OMP SWAP TILE", */
+   /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
 
 
    /* process ("PAR OMP SWAP NOWAIT", */
    /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-   /* fprintf(stderr,"\n"); */
-   /* sand_init(sand); */
-   /* start(ref, sand, ref_time, true, true); */
+   fprintf(stderr,"\n");
+   sand_init(sand);
+   start(ref, sand, ref_time, true, true);
 
    fprintf(stderr,"\n");
 
