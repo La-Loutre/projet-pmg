@@ -209,7 +209,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	cl_event prof_event;
 	cl_ulong start, end;
 	struct timeval t1,t2;
-	double timeInMicroseconds;
+	double timeInMilliseconds;
 	// global domain size for our calculation
 	size_t global[1] = { SIZE };
 	// local domain size for our calculation
@@ -223,15 +223,14 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &output_buffer);
 	check(err, "Failed to set kernel arguments");
 
-	int iterations = 1;
+	int iterations = 1000;
 
 	gettimeofday (&t1, NULL);
-
-	for (unsigned iter = 0; iter < iterations; iter++) {
+	do {
 	  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global, local,
 				       0, NULL, &prof_event);
 	  check(err, "Failed to execute kernel");
-	}
+	} while(true && iterations-- > 0);
 
 	// Wait for the command commands to get serviced before reading back results
 	clFinish(queue);
@@ -239,10 +238,10 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	gettimeofday (&t2,NULL);
 
 	// Check performance
-	timeInMicroseconds = (double)TIME_DIFF(t1, t2);
+	timeInMilliseconds = (double)TIME_DIFF(t1, t2)/1000;
 
-	printf("\tComputation performed in %lf µs over device #%d\n",
-	       timeInMicroseconds,
+	printf("\tComputation performed in %lf ms over device #%d\n",
+	       timeInMilliseconds,
 	       dev);
 
 	clReleaseEvent(prof_event);

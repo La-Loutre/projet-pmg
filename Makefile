@@ -59,5 +59,10 @@ run:
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d514
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d514
 
+opencl:
+	$(MAKE) clean
+	$(MAKE) METHOD=0 CASE=1 DIM=128
+	./bin/sandpiles-m0-c1-d128
+
 clean:
 	$(MAKE) clean

@@ -767,10 +767,10 @@ static inline int compute_omp_swap_nowait (sand_t sand)
    		   process ("SEQ EUCL",
    			    ref, sand, compute_eucl, ref_time, true, repeat));
 
-   /* ref_time = fmin(ref_time, */
-   /* 		   process ("SEQ EUCL SWAP", */
-   /* 			    ref, sand, compute_eucl_swap, ref_time, */
-   /* 			    false, repeat)); */
+   ref_time = fmin(ref_time,
+   		   process ("SEQ EUCL SWAP",
+   			    ref, sand, compute_eucl_swap, ref_time,
+   			    false, repeat));
 
    /* ref_time = fmin(ref_time, */
    /* 		   process ("SEQ EUCL VECTOR", */
@@ -779,8 +779,8 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
    // NOTE: We use best sequential time for reference
 
-   /* process ("PAR OMP", */
-   /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
+   process ("PAR OMP",
+   	    ref, sand, compute_omp, ref_time, false, repeat);
 
    /* process ("PAR OMP TILE", */
    /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
