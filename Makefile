@@ -45,7 +45,7 @@ test:
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=514
 
-run: test
+run:
 # OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d6
 # OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d6
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d128
