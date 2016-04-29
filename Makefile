@@ -31,7 +31,7 @@ test:
 	$(MAKE) clean
 	$(MAKE) METHOD=0 CASE=1 DIM=6
 	$(MAKE) clear
-	$(MAKE) METHOD=0 CASE=1 DIM=13-
+	$(MAKE) METHOD=0 CASE=1 DIM=130
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=1 DIM=258
 	$(MAKE) clear
