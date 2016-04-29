@@ -528,14 +528,13 @@ static inline int compute_omp_tile (sand_t sand)
    // We will read the edges, so they should be set to 0
    memset(*aux, 0, DIM*DIM*sizeof(unsigned));
 
-   fprintf(stderr, "tile %d, ntile %d, chunk %d, nchunk %d\n", tile, ntile, chunk, nchunk);
+   //   fprintf(stderr, "tile %d, ntile %d, chunk %d, nchunk %d\n", tile, ntile, chunk, nchunk);
 
    sand_t swap[2] = {sand, aux};
 
 
 #pragma omp parallel shared(change)
    {
-     int it = 2;
      sand_t read_from, write_to;
      read_from = swap[0];
      write_to = swap[1];
@@ -554,10 +553,10 @@ static inline int compute_omp_tile (sand_t sand)
 	     for (int x = 0;  x+t*tile < DIM-2 && x < tile; x++) {
 	       int X = x+t*tile+1;
 	       int Y = y+c*chunk+1;
-	       int val = sand[Y][X];
+	       int val = read_from[Y][X];
 
 	       change = change | (val >> 2);
-	       val %= 4;
+	       val &= 3;
 	       val += read_from[Y-1][X] / 4
 		 + read_from[Y+1][X] / 4
 		 + read_from[Y][X-1] / 4
@@ -571,10 +570,11 @@ static inline int compute_omp_tile (sand_t sand)
        read_from = swap[read];
        write_to = swap[write];
 
-     } while(change && it-- >2);
+     } while(change);
    } // END PARALLEL
    free(*aux);
    free(aux);
+   //print_matrix(sand,DIM);
    return change;
  }
 
@@ -714,6 +714,8 @@ static inline int compute_omp_swap_nowait (sand_t sand)
  int main (int argc, char **argv)
  {
    omp_set_nested(1);
+   omp_set_num_threads(4);
+
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
 
@@ -737,7 +739,7 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 		 MAX_HEIGHT,
 		 get,
 		 iterate,
-		 compute_omp,
+		 compute_omp_swap,
 		 sand);
    return 0;
 #endif // METHOD PAR OMP
