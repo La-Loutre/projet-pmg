@@ -71,16 +71,17 @@ void print_matrix(sand_t sand, int size)
   }
 }
 
-bool check_matrix(sand_t ref, sand_t sand)
+int check_matrix(sand_t ref, sand_t sand)
 {
+  int cpt = 0;
   // NOTE: we don't check the edges
   for(int i = 1; i < DIM-1; i++) {
     for(int j = 1; j < DIM-1; j++) {
       if (ref[i][j] != sand[i][j])
-	return false;
+	cpt++;
     }
   }
-  return true;
+  return cpt;
 }
 
 void timeandcheck(char *name,
@@ -101,10 +102,12 @@ void timeandcheck(char *name,
   }
   fprintf(stderr, "%.1f× ", speedup);
 
-  if (check_matrix(ref, sand))
+  int miss = check_matrix(ref, sand);
+  unsigned long pct = miss/((DIM-1)*(DIM-1))*100;
+  if (miss == 0)
     fprintf(stderr,"%sSUCCESS%s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%sFAILURE%s\n", ANSI_COLOR_RED, ANSI_COLOR_RESET);
+    fprintf(stderr,"%sFAILURE %ld%%s\n", ANSI_COLOR_RED, pct, ANSI_COLOR_RESET);
 }
 
 unsigned long process(char *name,

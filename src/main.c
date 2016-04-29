@@ -319,6 +319,7 @@ static inline int compute_naive (sand_t sand)
 
 static inline int compute_omp (sand_t sand)
 {
+
   int change = 0;
 #pragma omp parallel shared(change)
   {
@@ -328,6 +329,7 @@ static inline int compute_omp (sand_t sand)
     unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
 
     do {
+
 #pragma omp barrier
 #pragma omp single // barrier
       change = 0;
@@ -349,7 +351,65 @@ static inline int compute_omp (sand_t sand)
 	    + sand[y][x-1] / 4
 	    + sand[y][x+1] / 4;
 	  mysand[y][x] = val;
+
 	}
+      } // END PARALLEL FOR
+
+#pragma omp barrier
+      // SYNCHRONISATION
+      if (change) {
+#pragma omp for schedule(static, chunk)
+	for (int y = 1; y < DIM-1; y++) {
+	  for (int x = 1; x < DIM-1; x++) {
+	    sand[y][x] = mysand[y][x];
+	  }
+	} // END PARALLEL FOR
+      }
+    } while(change);
+  } // END PARALLE
+  return change;
+}
+
+static inline int compute_omp_tile (sand_t sand)
+{
+
+  int nthreads = omp_get_max_threads();
+  int change = 0;
+  int tile = 1000;
+  int chunk = (DIM-2)/nthreads;
+  int nchunk = (DIM-2)/ chunk + ((DIM-2) % chunk == 0 ? 0 : 1);
+  int ntile = (DIM-2)/tile +  ((DIM-2) % tile == 0 ? 0 : 1);
+
+#pragma omp parallel shared(change)
+  {
+    int myid = omp_get_thread_num();
+    unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
+
+    do {
+
+
+#pragma omp barrier
+#pragma omp single // barrier
+      change = 0;
+
+#pragma omp for schedule(static, 1) reduction(|:change)
+      for (int c = 0; c < nchunk; c++) {
+	for (int t = 0; t < ntile; t++)
+	  for (int y = 0; y+c*chunk < DIM-2 && y < chunk; y++)
+	    for (int x = 0;  x+t*tile < DIM-2 && x < tile; x++) {
+	      int X = x+t*tile+1;
+	      int Y = y+c*chunk+1;
+	      int val = sand[Y][X];
+	      // NOTE: works only if MAX_HEIGHT == 4
+	      change = change | (val >> 2);
+	      val %= MAX_HEIGHT;
+	      val += sand[Y-1][X] / 4
+		+ sand[Y+1][X] / 4
+		+ sand[Y][X-1] / 4
+		+ sand[Y][X+1] / 4;
+	      mysand[Y][X] = val;
+
+	    }
       } // END PARALLEL FOR
 
 #pragma omp barrier
@@ -367,141 +427,156 @@ static inline int compute_omp (sand_t sand)
   return change;
 }
 
-static inline int compute_omp_tile (sand_t sand)
-{
-  int change = 0;
-#pragma omp parallel shared(change)
-  {
-    int nthreads = omp_get_num_threads();
-    int myid = omp_get_thread_num();
-    int chunk = (DIM-2)/nthreads/2;
-    unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
+ static inline int compute_omp_swap (sand_t sand)
+ {
+   int change = 0;
+   int nthreads = omp_get_max_threads();
+   sand_t aux = create_sand_array(DIM);
 
-    do {
-#pragma omp barrier
-#pragma omp single // barrier
-      change = 0;
+   // We will read the edges, so they should be set to 0
+   memset(*aux, 0, DIM*DIM*sizeof(unsigned));
 
-#pragma omp for schedule(static, chunk) reduction(|:change) collapse(2)
-      for (int y = 1; y < DIM-1; y++) {
-	for (int x = 1; x < DIM-1; x++) {
-	  int val = sand[y][x];
-#if MAX_HEIGHT != 4
-	  if (val >= MAX_HEIGHT)
-	    change = 1;
-#else
-	  // NOTE: works only if MAX_HEIGHT == 4
-	  change = change | (val >> 2);
-#endif
-	  val %= MAX_HEIGHT;
-	  val += sand[y-1][x] / 4
-	    + sand[y+1][x] / 4
-	    + sand[y][x-1] / 4
-	    + sand[y][x+1] / 4;
-	  mysand[y][x] = val;
-	}
-      } // END PARALLEL FOR
+   sand_t swap[2] = {sand, aux};
 
-#pragma omp barrier
-      // SYNCHRONISATION
-      if (change) {
-#pragma omp for schedule(static, chunk) collapse(2)
-	for (int y = 1; y < DIM-1; y++) {
-	  for (int x = 1; x < DIM-1; x++) {
-	    sand[y][x] = mysand[y][x];
-	  }
-	} // END PARALLEL FOR
-      }
-    } while(change);
-  } // END PARALLEL
-  return change;
-}
-
-static inline int compute_omp_swap (sand_t sand)
-{
-  int change = 0;
-  int nthreads = omp_get_max_threads();
-  sand_t aux = create_sand_array(DIM);
-
-  // We will read the edges, so they should be set to 0
-  memset(*aux, 0, DIM*DIM*sizeof(unsigned));
-
-  sand_t swap[2] = {sand, aux};
-
-  sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1));
-  for (int i = 0; i < nthreads-1; i++)
-    assert(sem_init(&locks[i], 0, 0) ==0);
+   /* sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1)); */
+   /* for (int i = 0; i < nthreads-1; i++) */
+   /*   assert(sem_init(&locks[i], 0, 0) ==0); */
 
 #pragma omp parallel shared(change)
-  {
-    sand_t read_from, write_to;
-    read_from = swap[0];
-    write_to = swap[1];
+   {
+     sand_t read_from, write_to;
+     read_from = swap[0];
+     write_to = swap[1];
 
-    int myid = omp_get_thread_num();
-    int chunk = (DIM-2) / nthreads;
-    int read = 0;
-    int write = 1;
+     int myid = omp_get_thread_num();
+     int chunk = (DIM-2) / nthreads;
+     int read = 0;
+     int write = 1;
 
-    do {
+     do {
 #pragma omp barrier
 #pragma omp single // barrier
-      change = 0;
+       change = 0;
 
 #pragma omp for schedule(static, chunk) reduction(|:change)
-      for (int y = 1; y < DIM-1; y++) {
-	int chunk_number = (y-1) / chunk;
-	// if nthreads is not a multiple of DIM
-	// NOTE: two incrorrect branch predictions at maximum
-	if (chunk_number >= nthreads)
-	  chunk_number = nthreads -1;
-	int first = chunk_number * chunk + 1;
-	int last;
-	if (chunk_number == nthreads-1)
-	  last = DIM-2;
-	else
-	  last = first + chunk-1;
+       for (int y = 1; y < DIM-1; y++) {
+	 /*int chunk_number = (y-1) / chunk;
+	 // if nthreads is not a multiple of DIM
+	 // NOTE: two incrorrect branch predictions at maximum
 
-	// WAIT
-	// NOTE: two incorrect branch predictions at maximum
-	if (y == last && last != DIM-2) {
-	  assert(sem_wait(&locks[chunk_number]) == 0);
-	}
-	for (int x = 1; x < DIM-1; x++) {
-	  int val = read_from[y][x];
+	 if (chunk_number >= nthreads)
+	   chunk_number = nthreads -1;
+	   int first = chunk_number * chunk + 1;
+	   int last;
+	   if (chunk_number == nthreads-1)
+	   last = DIM-2;
+	   else
+	   last = first + chunk-1;*/
 
-	  // UPDATE
-	  // NOTE: works only if MAX_HEIGHT == 4
-	  change = change | (val >> 2);
-	  val &= 3 ;
-	  val += read_from[y-1][x] / 4
-	    + read_from[y+1][x] / 4
-	    + read_from[y][x-1] / 4
-	    + read_from[y][x+1] / 4;
+	 /*// WAIT
+	 // NOTE: two incorrect branch predictions at maximum
+	 if (y == last && last != DIM-2) {
+	 assert(sem_wait(&locks[chunk_number]) == 0);
+	 }*/
 
-	  write_to[y][x] = val;
-	}
-	// POST
-	// NOTE: two incorrect branch predictions at maximum
-	if (y == first && first != 1) {
-	  assert(nthreads-1 > chunk_number-1);
-	  assert(chunk_number >= 0);
-	  assert (sem_post(&locks[chunk_number-1]) == 0);
-	}
+	 for (int x = 1; x < DIM-1; x++) {
+	   int val = read_from[y][x];
 
-      } // END PARALLEL FOR
-      read = 1 - read;
-      write = 1 - write;
-      read_from = swap[read];
-      write_to = swap[write];
+	   // UPDATE
+	   // NOTE: works only if MAX_HEIGHT == 4
+	   change = change | (val >> 2);
+	   val &= 3 ;
+	   val += read_from[y-1][x] / 4
+	     + read_from[y+1][x] / 4
+	     + read_from[y][x-1] / 4
+	     + read_from[y][x+1] / 4;
 
-    } while(change);
- } // END PARALLEL
-  free(*aux);
-  free(aux);
-  free(locks);
-  return change;
-}
+	   write_to[y][x] = val;
+	 }
+
+	 /*// POST
+	 // NOTE: two incorrect branch predictions at maximum
+	 if (y == first && first != 1) {
+	 assert(nthreads-1 > chunk_number-1);
+	 assert(chunk_number >= 0);
+	 assert (sem_post(&locks[chunk_number-1]) == 0);
+	 }*/
+
+       } // END PARALLEL FOR
+       read = 1 - read;
+       write = 1 - write;
+       read_from = swap[read];
+       write_to = swap[write];
+
+     } while(change);
+   } // END PARALLEL
+   free(*aux);
+   free(aux);
+   /* free(locks); */
+   return change;
+ }
+
+ static inline int compute_omp_swap_tile (sand_t sand)
+ {
+   int change = 0;
+   int nthreads = omp_get_max_threads();
+   sand_t aux = create_sand_array(DIM);
+   int tile = 14;
+   int chunk = (DIM-2)/nthreads;
+   int nchunk = (DIM-2)/ chunk + ((DIM-2) % chunk == 0 ? 0 : 1);
+   int ntile = (DIM-2)/tile +  ((DIM-2) % tile == 0 ? 0 : 1);
+   // We will read the edges, so they should be set to 0
+   memset(*aux, 0, DIM*DIM*sizeof(unsigned));
+
+   fprintf(stderr, "tile %d, ntile %d, chunk %d, nchunk %d\n", tile, ntile, chunk, nchunk);
+
+   sand_t swap[2] = {sand, aux};
+
+
+#pragma omp parallel shared(change)
+   {
+     int it = 2;
+     sand_t read_from, write_to;
+     read_from = swap[0];
+     write_to = swap[1];
+     int read = 0;
+     int write = 1;
+
+     do {
+#pragma omp barrier
+#pragma omp single // barrier
+       change = 0;
+
+#pragma omp for schedule(static, 1) reduction(|:change)
+       for (int c = 0; c < nchunk; c++) {
+	 for (int t = 0; t < ntile; t++)
+	   for (int y = 0; y+c*chunk < DIM-2 && y < chunk; y++)
+	     for (int x = 0;  x+t*tile < DIM-2 && x < tile; x++) {
+	       int X = x+t*tile+1;
+	       int Y = y+c*chunk+1;
+	       int val = sand[Y][X];
+
+	       change = change | (val >> 2);
+	       val %= 4;
+	       val += read_from[Y-1][X] / 4
+		 + read_from[Y+1][X] / 4
+		 + read_from[Y][X-1] / 4
+		 + read_from[Y][X+1] / 4;
+
+	       write_to[Y][X] = val;
+	     }
+       } // END PARALLEL FOR
+       read = 1 - read;
+       write = 1 - write;
+       read_from = swap[read];
+       write_to = swap[write];
+
+     } while(change && it-- >2);
+   } // END PARALLEL
+   free(*aux);
+   free(aux);
+   return change;
+ }
 
 static inline int compute_omp_swap_nowait (sand_t sand)
 {
@@ -636,40 +711,6 @@ static inline int compute_omp_swap_nowait (sand_t sand)
   return change;
 }
 
-
-void lol ()
-{
-  int nthreads = 2;
-  int size = 66;
-  int tile = 8;
-  int chunk = (size-2)/nthreads;
-  int nchunk = (size-2)/chunk;
-  int ntile = (size-2)/tile;
-
-  sand_t mysand = create_sand_array(size);
-  for (int y = 0; y < size; y++)
-    for (int x = 0; x < size; x++)
-      mysand[y][x] = 0;
-
-#pragma omp parallel num_threads(nthreads)
-  {
-    int cpt = 0;
-    int lol = 0;
-    int myid = omp_get_thread_num();
-#pragma omp for schedule(static, 1)
-    for (int c = 0; c < nchunk; c++)
-      for (int t = 0; t < ntile; t++)
-	for (int y = 0; y < chunk; y++)
-	  for (int x = 0; x < tile; x++) {
-	    int offset_chunk = c*chunk;
-	    int offset_tile = t*tile;
-	    cpt++;
-	    mysand[y+c*chunk+1][x+t*tile+1] = ++lol;
-	  }
-  }
-  print_matrix(mysand, size);
-}
-
  int main (int argc, char **argv)
  {
    omp_set_nested(1);
@@ -707,7 +748,7 @@ void lol ()
 		 MAX_HEIGHT,
 		 get,
 		 iterate,
-		 compute_omp_swap,
+		 compute_omp_swap_tile,
 		 sand);
    return 0;
 #endif // METHOD PAR OMP SEM
@@ -719,42 +760,44 @@ void lol ()
 
    // NOTE: We use the previous best compute time for reference
 
-   /* ref_time = process("SEQ REF", */
-   /* 		      ref, ref, compute_naive, ref_time, true, repeat); */
+   ref_time = process("SEQ REF",
+   		      ref, ref, compute_naive, ref_time, true, repeat);
 
    /* ref_time = fmin(ref_time, */
    /* 		   process ("SEQ EUCL", */
    /* 			    ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-   /* ref_time = fmin(ref_time, */
-   /* 		   process ("SEQ EUCL SWAP", */
-   /* 			    ref, sand, compute_eucl_swap, ref_time, */
-   /* 			    false, repeat)); */
+   ref_time = fmin(ref_time,
+   		   process ("SEQ EUCL SWAP",
+   			    ref, sand, compute_eucl_swap, ref_time,
+   			    false, repeat));
 
    /* ref_time = fmin(ref_time, */
    /* 		   process ("SEQ EUCL VECTOR", */
    /* 			    ref, sand, compute_eucl_vector, ref_time, */
    /* 			    false, repeat)); */
 
-   /* // NOTE: We use best sequential time for reference */
+   // NOTE: We use best sequential time for reference
 
    /* process ("PAR OMP", */
    /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
 
-   /* /\* process ("PAR OMP TILE", *\/ */
-   /* /\* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
+   /* process ("PAR OMP TILE", */
+   /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
 
-   /* process ("PAR OMP SWAP", */
-   /* 	    ref, sand, compute_omp_swap, ref_time, false, repeat); */
+   process ("PAR OMP SWAP",
+   	    ref, sand, compute_omp_swap, ref_time, false, repeat);
 
-   /* /\* process ("PAR OMP SWAP NOWAIT", *\/ */
-   /* /\* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); *\/ */
+   process ("PAR OMP SWAP TILE",
+   	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat);
 
-   /* /\* fprintf(stderr,"\n"); *\/ */
-   /* /\* sand_init(sand); *\/ */
-   /* /\* start(ref, sand, ref_time, true, true); *\/ */
 
-   lol();
+   /* process ("PAR OMP SWAP NOWAIT", */
+   /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+
+   /* fprintf(stderr,"\n"); */
+   /* sand_init(sand); */
+   /* start(ref, sand, ref_time, true, true); */
 
    fprintf(stderr,"\n");
 
