@@ -24,6 +24,16 @@
 
 #define MAX_HEIGHT 4
 
+int compute_chunk(int nthreads)
+{
+  if ((DIM-2) % nthreads == 0)
+    return (DIM-2)/nthreads;
+  else if ((DIM-2) % 4 == 0)
+    return 4;
+  else
+    return 2;
+}
+
 static inline int compute_eucl_swap (sand_t sand)
 {
   int change = 0;
@@ -373,21 +383,17 @@ static inline int compute_omp_iter (sand_t sand)
   int iter = 1;
   int sup = iter-1;
   int change = 0;
-  int NEWDIM = DIM+2*sup;
-
-  // SEND TO DATA TO EXTENDED MATRIX
-  unsigned new_sand[NEWDIM][NEWDIM];
-  memset(&new_sand[0][0], 0, NEWDIM*NEWDIM*sizeof(unsigned));
-  for(int y = 1; y < DIM-1; y++)
-    for(int x = 1; x < DIM-1; x++)
-      new_sand[y+sup][x+sup] = sand[y][x];
 
 #pragma omp parallel
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
-    int chunk = (DIM-2)/nthreads;
-    unsigned mysand [NEWDIM][NEWDIM];
+    int mysup = sup;
+    int mychange = 0;
+
+    int chunk = compute_chunk(nthreads);
+
+    unsigned mysand [DIM][DIM];
 
     do {
 
@@ -397,39 +403,65 @@ static inline int compute_omp_iter (sand_t sand)
 
       // ITERATIONS
       for (int it = 0; it < iter; it++) {
-#pragma omp for schedule(static, chunk) reduction(|:change)
-	for (int y = 1+sup; y < DIM-1; y++) {
-	  for (int x = 1+sup; x < DIM-1; x++) {
-	    int val = new_sand[y][x];
+#pragma omp for schedule(static, chunk)
+	for (int y = 1; y < DIM-1; y++) {
+	  for (int x = 1; x < DIM-1; x++) {
+	    int val = sand[y][x];
 	    // NOTE: works only if MAX_HEIGHT == 4
-	    change = change | (val >> 2);
+	    mychange = mychange | (val >> 2);
 	    val &= 3;
-	    val += new_sand[y-1][x] / 4
-	      + new_sand[y+1][x] / 4
-	      + new_sand[y][x-1] / 4
-	      + new_sand[y][x+1] / 4;
+	    val += sand[y-1][x] / 4
+	      + sand[y+1][x] / 4
+	      + sand[y][x-1] / 4
+	      + sand[y][x+1] / 4;
 	    mysand[y][x] = val;
 	  }
 	} // END PARALLEL FOR
-      }
 
+	// FRONTIER
+	int inf_frontier = myid*chunk+1;
+	int sup_frontier = myid*chunk+chunk+1;
+	for (int y = inf_frontier-sup; y < inf_frontier && y > 1; y++) {
+	  assert(false);
+	  for (int x = 1; x < DIM-1; x++) {
+	    int val = sand[y][x];
+	    val &= 3;
+	    val += sand[y-1][x] / 4
+	      + sand[y+1][x] / 4
+	      + sand[y][x-1] / 4
+	      + sand[y][x+1] / 4;
+	    mysand[y][x] = val;
+	  }
+	}
+	for (int y = sup_frontier; y < sup_frontier+sup && y < DIM-1; y++) {
+	  assert(false);
+	  for (int x = 1; x < DIM-1; x++) {
+	    int val = sand[y][x];
+	    val &= 3;
+	    val += sand[y-1][x] / 4
+	      + sand[y+1][x] / 4
+	      + sand[y][x-1] / 4
+	      + sand[y][x+1] / 4;
+	    mysand[y][x] = val;
+	  }
+	}
+	--mysup;
+      } // END ITERATIONS
+
+#pragma omp atomic update
+      change |= mychange;
 #pragma omp barrier
       // SYNCHRONISATION
       if (change) {
 #pragma omp for schedule(static, chunk)
 	for (int y = 1+sup; y < DIM-1; y++) {
 	  for (int x = 1+sup; x < DIM-1; x++) {
-	    new_sand[y][x] = mysand[y][x];
+	    sand[y][x] = mysand[y][x];
 	  }
 	} // END PARALLEL FOR
       }
     } while(change);
   } // END PARALLEL
-
-  // RETREIVE DATA FROM EXTENDED MATRIX
-  for(int y = 1; y < DIM-1; y++)
-    for(int x = 1; x < DIM-1; x++)
-      sand[y][x] = new_sand[y+sup][x+sup];
   return change;
 }
 
@@ -494,7 +526,6 @@ static inline int compute_omp_tile (sand_t sand)
 static inline int compute_omp_swap (sand_t sand)
 {
   int change = 0;
-  int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
 
   // We will read the edges, so they should be set to 0
@@ -512,8 +543,9 @@ static inline int compute_omp_swap (sand_t sand)
     read_from = swap[0];
     write_to = swap[1];
 
+    int nthreads = omp_get_max_threads();
     int myid = omp_get_thread_num();
-    int chunk = (DIM-2) / nthreads;
+    int chunk = compute_chunk(nthreads);
     int read = 0;
     int write = 1;
 
@@ -668,7 +700,7 @@ static inline int compute_omp_swap_nowait (sand_t sand)
     write_to = swap[1];
 
     int myid = omp_get_thread_num();
-    int chunk = (DIM-2) / nthreads;
+    int chunk = compute_chunk(nthreads);
     int read = 0;
     int write = 1;
     int mychange;
@@ -827,14 +859,14 @@ int main (int argc, char **argv)
   ref_time = process("SEQ REF",
   		     ref, ref, compute_naive, ref_time, true, repeat);
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL",
-  			   ref, sand, compute_eucl, ref_time, true, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL", */
+  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL SWAP",
-  			   ref, sand, compute_eucl_swap, ref_time,
-  			   false, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL SWAP", */
+  /* 			   ref, sand, compute_eucl_swap, ref_time, */
+  /* 			   false, repeat)); */
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
@@ -847,20 +879,20 @@ int main (int argc, char **argv)
 
   // NOTE: We use best sequential time for reference
 
-  int max = omp_get_max_threads();
+  /* int max = omp_get_max_threads(); */
   /* for (int i = 1; i <= max; i++) { */
   /* omp_set_num_threads(i); */
-  omp_set_num_threads(max/2);
+
   /*   printf("NTHREADS %d\n", omp_get_max_threads()); */
 
-  process ("PAR OMP",
-  	   ref, sand, compute_omp, ref_time, false, repeat);
+  /* process ("PAR OMP", */
+  /* 	   ref, sand, compute_omp, ref_time, false, repeat); */
 
   /* /\* process ("PAR OMP TILE", *\/ */
   /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
 
-  /* process ("PAR OMP SWAP", */
-  /* 	     ref, sand, compute_omp_swap, ref_time, false, repeat); */
+  process ("PAR OMP SWAP",
+  	     ref, sand, compute_omp_swap, ref_time, false, repeat);
 
   /* process ("PAR OMP SWAP TILE", */
   /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
@@ -869,12 +901,13 @@ int main (int argc, char **argv)
   /* process ("PAR OMP SWAP NOWAIT", */
   /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-  process ("PAR OMP ITER",
-  	   ref, sand, compute_omp_iter, ref_time, false, repeat);
-  //  print_matrix(sand,DIM);
-  /* } */
-  /* fprintf(stderr,"\n"); */
+  /* process ("PAR OMP ITER", */
+  /* 	   ref, sand, compute_omp_iter, ref_time, false, repeat); */
 
+  /* } */
+
+  fprintf(stderr,"\n");
+  sand_init(sand);
   start(ref, sand, ref_time, true, true);
 
   puts("\n");
