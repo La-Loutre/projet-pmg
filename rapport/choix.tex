@@ -1,5 +1,153 @@
 \section {Choix effectués}
 
+\subsubsection{Algorithme de référence}
+
+Un premier algorithme naïf a été écrit. Il s'agit d'une simple double
+boucles qui, pour chaque case, fait écrouler le tas de sable sur les
+quatres cases voisines.  Nous utilisons cette algorithme comme
+référence pour vérifier que les algorithmes optimisés ou parallèles
+donnent des résultats corrects. Il s'agit de la méthode
+\texttt{compute\_naive} (algorithme~).
+
+% TODO: comment cest alloc memoire
+
 \subsection{Algorithmes séquentiels}
 
+\subsubsection{Division euclidienne}
+
+Une première optimisation simple consiste à effectuer des divisions
+euclidiennes pour faire ébouler un tas de sable d'un seul coup sur les
+cases voisines. L'avantage est que si un case contient un grand nombre
+de grains de sable, on va pouvoir la vider en une
+opération. Seulement, à l'itération suivante, un huitième des grains
+de sable envoyés chez les voisins reviennent sur la case de départ.
+Il s'agit de la méthode \texttt{compute\_eucl} (algorithme~).
+\medskip
+
+\subsubsection{Prédiction de branchement}
+
+Une autre optimisation consiste à mieux utiliser la prédiction de
+branchement du processeur.  À chaque itération et pour chaque case, on
+vérifie si la case dépasse une certaine valeur (la taille maximale
+d'un tas de sable avant éboulement). Or, comme d'une case à l'autre le
+contenu peut être radicalement différent, on peut peut pas
+statistiquement prédire si nous allons effectuer un changement (un
+éboulement) ou non. La prédiction de branchement n'est donc pas
+efficace ici.
+\medskip
+
+Il faudrait alors effectuer toujours les mêmes opérations, qu'il y ait
+un changement ou non. En réalité, cela est compliqué.
+% TODO: ici c'est pas parfait ya un vieux switch
+\medskip
+
+\subsubsection{Diminuer les accès en écriture}
+
+Une autre approche que l'éboulement du tas de sable sur les cases
+voisines consistes à consulter le hauteur du tas de chacun de des
+voisins d'une case. En fonction de ces quatres hauteurs, on met à jour
+la valeur de la case, en faisant écrouler les tas de sables voisins
+sur la case, mais sans modifier le contenu des cases voisines. Avec
+cette approche, à chaque itération et pour chaque case, on effectue 5
+accès lecture et un accès écriture contre 5 accès lecture et écriture
+pour l'autre approche. Il s'agit de la méthode
+\texttt{compute\eucl\_swap} (algorithme~).
+
+L'incovenient de cette approche est qu'on ne peut pas lire et écrire
+dans la même matrice sinon les résultats seraient faux. Ainsi, on
+dispose d'une matrice d'écriture et d'une matrice de lecture. Pendant
+qu'on lit la matrice de lecture, on écrit sur une matrice
+auxiliaire. Ensuite, après une itération, on échange la matrice de
+lecture et d'écriture.
+
+Nous pouvons avec cette méthode facilement effectuer le même
+traitement qu'il faille ébouler une case ou non.
+\bigskip
+
+Nous avons essayé d'autres approches comme la détection des zones
+stables, \texttt{compute\_eucl\_chunk}, ou l'utilisation d'opérations vectorielles pour tenter de
+traiter plusieurs cases d'un seul coup, \texttt{compute\_eucl\_vector}.
+
 \subsection{Algorithmes multi-threads}
+
+\subsubsection{Paralléliser une itération de l'algorithme}
+
+Une première solution multi-threads a été réalisée à l'aide
+d'OpenMP. Il s'agit de la méthode \texttt{compute\_omp}.  Nous
+répartissons le traitement de chaque ligne de la matrice sur un
+ensemble de threads. Un thread se voit donc attribuer
+$(DIM-2)/nthreads$ lignes successives. Comme pour
+\texttt{compute\eucl\_swap}, lorsqu'on parcourt une case, on ne
+modifie pas les cases voisines. Cela permet de ne pas modifier les
+parties de la matrices gérées par d'autres threads.
+
+Chaque thread travaille donc sur une matrice privée de taille
+$DIM*DIM$ dans la pile. Une première itération de l'algorithme est
+faite, chaque thread modifie sa propre matrice, puis on synchronise
+tous les threads avec une barrière. Cela nous permet de mettre à jour
+la matrice de départ avec les nouvelles valeurs suite au débordement
+de chaque case.
+\medskip
+
+\subsubsection{Paralléliser p-itération de l'algorithme}
+
+% TODO: parler de p iter
+
+\subsubsection{Rapatriement des données}
+
+Une autre approche a été pensée pour éviter le rapatriement des
+nouvelles valeurs sur la matrice de départ. Celle-ci se base plus
+sur \texttt{compute\eucl\_swap}. Chaque thread ne travaille plus sur
+une matrice privée mais on dispose de deux matrices partagées, une en
+lecture et une en écriture.
+
+Chaque thread effectue une itération en lisant dans une matrice et en
+écrivant dans l'autre. Lorsque tous les threads ont terminés, on
+échange la matrice de lecture et d'écriture.
+
+Il est nécessaire de synchroniser les threads à chaque itération pour
+être certain que tout le monde s'arrête lorsque toute la matrice est
+stabilisée. Il s'agit de la méthode \texttt{compute\_omp\_swap} (algorithme~).
+\medskip
+
+\subsubsection{Limiter au maximum les synchronisations}
+
+Une autre approche a été tentée, avec l'objectif d'utiliser des
+barrières le moins souvent possible. Il s'agit de la méthode
+\texttt{compute\_omp\_swap\_nowait} (algorithme~). Cette méthode prend
+le pari de les threads vont évoluer à la même vitesse.
+
+Ainsi, chaque thread tente de stabiliser la région qui lui est
+assignée sans communication avec les autres threads. Il est important
+de rappeler comment est réparti le travail. Chaque thread s'occupe de
+$(DIM-2)/nthreads$ lignes successives de la matrice. Pour garder des
+résultats corrects, il faut insérer des dépendances sur les lignes
+frontières de deux threads. Ces dépendances sont illustrées sur la
+figure~TODO.
+
+Pour implémenter ces dépendances, nous utilisons un tableau de
+sémaphores de taille $nthreads-1$ et initialisées à 0. Chaque thread
+$t$ (excepté le dernier thread) tente de décrémenter la sémaphore du
+thread $t+1$ avant d'écrire la dernière ligne qui lui est attribuée,
+la ligne frontière entre deux threads. De son côté, le thread $t+1$
+incrémente la sémaphore lorsqu'il a terminé de traiter la première
+ligne qui lui est attribuée.
+
+On espère en pratique que les threads travaillent à la même vitesse
+et que la sémaphore contient toujours la valeur 1.
+
+Lorsqu'un thread a stabilisé sa partie de la matrice, cela ne veut pas
+dire qu'elle va rester stable, jusqu'à la fin. Les éboulement peuvent
+ne pas encore être parvenu à ses frontières comme cela peut être le
+cas lorsqu'on initialise tous les cases à 0 sauf celle du milieu où on
+place 100000. Ainsi, chaque thread ayant stabilisé sa matrice s'endort sur
+une condition (une autre sémaphore).
+
+Pour le le dernier thread a avoir stabilisé sa matrice, plutôt que de
+s'endormir lui aussi, il réveille tous les autres en leur demandant
+d'effectuer une dernière itération. Cette itération doit permettre de
+savoir si des nouvelles valeurs ont été placées aux frontières pendant
+qu'on était endormis. Si c'est le cas, on recommence le processus
+depuis le départ. Sinon, l'algorithme se termine.
+
+\subsubsection{Version OpenCL}

@@ -817,10 +817,10 @@ int main (int argc, char **argv)
   			   ref, sand, compute_eucl_swap, ref_time,
   			   false, repeat));
 
-  ref_time = fmin(ref_time,
-		  process ("SEQ EUCL VECTOR",
-			   ref, sand, compute_eucl_vector, ref_time,
-			   false, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL VECTOR", */
+  /* 			   ref, sand, compute_eucl_vector, ref_time, */
+  /* 			   false, repeat)); */
 
   // NOTE: We use best sequential time for reference
 
@@ -847,12 +847,12 @@ int main (int argc, char **argv)
 
     /* process ("PAR OMP ITER", */
     /* 	    ref, sand, compute_omp_iter, ref_time, false, repeat); */
-    puts("\n");
   }
   /* fprintf(stderr,"\n"); */
   /* sand_init(sand); */
   /* start(ref, sand, ref_time, true, true); */
 
+  puts("\n");
   return 0;
 #endif // METHOD TEST
 }
