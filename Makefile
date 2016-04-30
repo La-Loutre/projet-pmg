@@ -31,13 +31,9 @@ test:
 	$(MAKE) clean
 	$(MAKE) METHOD=0 CASE=1 DIM=128
 	$(MAKE) clear
-	$(MAKE) METHOD=0 CASE=1 DIM=256
-	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=1 DIM=512
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=128
-	$(MAKE) clear
-	$(MAKE) METHOD=0 CASE=2 DIM=256
 	$(MAKE) clear
 	$(MAKE) METHOD=0 CASE=2 DIM=512
 
@@ -46,8 +42,6 @@ run:
 # OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d6
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d128
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d128
-	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d256
-	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d256
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c1-d512
 	OMP_PROC_BIND=true ./bin/sandpiles-m0-c2-d512
 

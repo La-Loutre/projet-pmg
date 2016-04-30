@@ -90,7 +90,7 @@ void timeandcheck(char *name,
 		  sand_t ref,
 		  sand_t sand)
 {
-  fprintf(stderr, "%s %ld.%03ld ms ",
+  fprintf(stdout, "%s %ld.%03ld ms ",
 	  name, compute_time/1000, compute_time%1000);
 
   double speedup;
@@ -100,15 +100,15 @@ void timeandcheck(char *name,
     speedup = ref_time;
     speedup /= compute_time;
   }
-  fprintf(stderr, "%.2f× ", speedup);
+  fprintf(stdout, "%.2f× ", speedup);
 
   int misses = check_matrix(ref, sand);
   float size = (DIM-2)*(DIM-2);
   float pct = (misses*100)/size;
   if (misses == 0)
-    fprintf(stderr,"%sSUCCESS %s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
+    fprintf(stdout,"%sSUCCESS %s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%sFAILURE%s (%.1f %% fails)\n", ANSI_COLOR_RED,
+    fprintf(stdout,"%sFAILURE%s (%.1f %% fails)\n", ANSI_COLOR_RED,
 	    ANSI_COLOR_RESET, pct);
 }
 

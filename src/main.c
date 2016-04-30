@@ -505,7 +505,8 @@ static inline int compute_omp_swap (sand_t sand)
 
 #pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
-	/*int chunk_number = (y-1) / chunk;
+	/*// FIND WHERE WE SHOULD USE SEMAPHORE
+	//int chunk_number = (y-1) / chunk;
 	// if nthreads is not a multiple of DIM
 	// NOTE: two incrorrect branch predictions at maximum
 
@@ -526,7 +527,6 @@ static inline int compute_omp_swap (sand_t sand)
 
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = read_from[y][x];
-
 	  // UPDATE
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  change = change | (val >> 2);
@@ -535,7 +535,6 @@ static inline int compute_omp_swap (sand_t sand)
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
 	    + read_from[y][x+1] / 4;
-
 	  write_to[y][x] = val;
 	}
 
@@ -755,13 +754,13 @@ static inline int compute_omp_swap_nowait (sand_t sand)
   return change;
 }
 
- int main (int argc, char **argv)
- {
-   omp_set_nested(1);
-   //   omp_set_num_threads(4);
+int main (int argc, char **argv)
+{
+  omp_set_nested(1);
+  //   omp_set_num_threads(4);
 
   printf("BINDING %d ", omp_get_proc_bind());
-  printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
+  printf("DIM %d CASE %d\n", DIM, CASE);
 
   sand_t sand = create_sand_array(DIM);
   sand_init (sand);
@@ -802,53 +801,57 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 #if METHOD == TEST
   unsigned **ref = create_sand_array(DIM);
   unsigned long ref_time = 0;
-  int repeat = 1;
+  int repeat = 3;
 
   // NOTE: We use the previous best compute time for reference
 
   ref_time = process("SEQ REF",
-		     ref, ref, compute_naive, ref_time, true, repeat);
+  		     ref, ref, compute_naive, ref_time, true, repeat);
 
   ref_time = fmin(ref_time,
-		  process ("SEQ EUCL",
-			   ref, sand, compute_eucl, ref_time, true, repeat));
+  		  process ("SEQ EUCL",
+  			   ref, sand, compute_eucl, ref_time, true, repeat));
 
   ref_time = fmin(ref_time,
-		  process ("SEQ EUCL SWAP",
-			   ref, sand, compute_eucl_swap, ref_time,
+  		  process ("SEQ EUCL SWAP",
+  			   ref, sand, compute_eucl_swap, ref_time,
+  			   false, repeat));
+
+  ref_time = fmin(ref_time,
+		  process ("SEQ EUCL VECTOR",
+			   ref, sand, compute_eucl_vector, ref_time,
 			   false, repeat));
-
-  ref_time = fmin(ref_time,
-  		   process ("SEQ EUCL VECTOR",
-  			    ref, sand, compute_eucl_vector, ref_time,
-  			    false, repeat));
 
   // NOTE: We use best sequential time for reference
 
-  process ("PAR OMP",
-  	    ref, sand, compute_omp, ref_time, false, repeat);
+  int max = omp_get_max_threads();
+  for (int i = 1; i <= max; i++) {
+    omp_set_num_threads(i);
+    printf("NTHREADS %d\n", omp_get_max_threads());
 
-  process ("PAR OMP TILE",
-	   ref, sand, compute_omp_tile, ref_time, false, repeat);
+    process ("PAR OMP",
+	     ref, sand, compute_omp, ref_time, false, repeat);
 
-  process ("PAR OMP SWAP",
-	   ref, sand, compute_omp_swap, ref_time, false, repeat);
+    /* process ("PAR OMP TILE", */
+    /* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); */
 
-  process ("PAR OMP SWAP TILE",
-  	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat);
+    process ("PAR OMP SWAP",
+	     ref, sand, compute_omp_swap, ref_time, false, repeat);
+
+    /* process ("PAR OMP SWAP TILE", */
+    /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
 
 
-  /* process ("PAR OMP SWAP NOWAIT", */
-  /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+    /* process ("PAR OMP SWAP NOWAIT", */
+    /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
     /* process ("PAR OMP ITER", */
-  /* 	    ref, sand, compute_omp_iter, ref_time, false, repeat); */
-
+    /* 	    ref, sand, compute_omp_iter, ref_time, false, repeat); */
+    puts("\n");
+  }
   /* fprintf(stderr,"\n"); */
   /* sand_init(sand); */
   /* start(ref, sand, ref_time, true, true); */
-
-  fprintf(stderr,"\n");
 
   return 0;
 #endif // METHOD TEST
