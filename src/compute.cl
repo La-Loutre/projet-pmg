@@ -1,21 +1,60 @@
 __kernel void sandpiles(__global unsigned *read,
-			__global unsigned *write)
+			__global unsigned *write,
+			__global unsigned *changed
+			)
 {
-  int x = get_global_id(0);
-  int y = get_global_id(1);
+  int x_glob = get_global_id(0);
+  int y_glob = get_global_id(1);
+  int x_group = get_group_id(0);
+  int y_group = get_group_id(1);
+
+
   int lx = get_local_id(0);
-  int ly  = get_local_id(1);
-  int X = get_group_id(0);
-  int Y = get_group_id(1);
+  int ly = get_local_id(1);
+  int k = DIM/TILE; //Integer (16)
 
-  if (y != 0 && y != DIM-1 && x != 0 && x != DIM-1) {
-    int val = read[y*DIM+x];
+  /*
+   * x,y real value from 2 dim array
+   *
+   */
+   int x_real = x_group*TILE+lx;
+  int y_real = y_group*TILE+ly;
+  /*
+   * Pos from x,y real value 1 dim array
+   */
+  int pos = x_real + y_real*k * TILE;
+
+  /*
+   * We don't have any change at start
+   */
+  int change = 0;
+
+
+  if (y_real != 0 &&
+      y_real != DIM-1 &&
+      x_real != 0 &&
+      x_real != DIM-1)
+     {
+    int val = read[pos];
+    change = (val >> 2);
     val &= 3;
-    val += read[(y-1)*DIM+x] / 4
-      + read[(y+1)*DIM+x] / 4
-      + read[y*DIM+x-1] / 4
-      + read[y*DIM+x+1] / 4;
 
-    write[y*DIM+x] = val;
-  }
+    val += read[pos - DIM] / 4
+      + read[pos + DIM] / 4
+      + read[pos -1] / 4
+      + read[pos + 1] / 4;
+
+    write[pos] = val;
+
+    if (change == 1)
+      *changed= 1;
+
+   }
+   else
+     {
+
+       write[pos] = -1;
+     }
+
+
 }
