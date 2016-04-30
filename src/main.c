@@ -871,7 +871,7 @@ int main (int argc, char **argv)
 
   process ("PAR OMP ITER",
   	   ref, sand, compute_omp_iter, ref_time, false, repeat);
-  print_matrix(sand,DIM);
+  //  print_matrix(sand,DIM);
   /* } */
   /* fprintf(stderr,"\n"); */
 

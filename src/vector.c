@@ -34,7 +34,7 @@ static void alloc_buffers_and_user_data(cl_context context)
 {
   // CPU side
   input_data = &sand[0][0];
-  print_matrix(sand,DIM);
+  //  print_matrix(sand,DIM);
   output_data = malloc(SIZE * SIZE * sizeof(unsigned));
   changed_data = malloc(sizeof(unsigned));
   *changed_data = 0;
@@ -67,11 +67,11 @@ static void check_output_data()
     int cpt = 0;
     for(int i = 0; i < DIM; i++) {
       for(int j = 0; j < DIM; j++) {
-	printf("[%d]",sand[j+i*DIM],j+i*DIM);
+	//	printf("[%d]",sand[j+i*DIM],j+i*DIM);
 	if (ref[i*DIM+j] != sand[i*DIM+j])
 	     cpt++;
       }
-      printf("\n\n");
+      //      printf("\n\n");
     }
     return cpt;
 }
@@ -101,9 +101,9 @@ static void send_input(cl_command_queue queue)
 static void send_reset_changed(cl_command_queue queue)
 {
   cl_int err;
-
+  unsigned reset = 0;
   err = clEnqueueWriteBuffer(queue, changed_buffer, CL_TRUE, 0,
-			     sizeof(unsigned) , changed_data_reset, 0, NULL, NULL);
+			     sizeof(unsigned) , &reset, 0, NULL, NULL);
   check(err, "Failed to write to changed_reset");
 }
 static void retrieve_output(cl_command_queue queue, int mod)
@@ -247,12 +247,14 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       // Write our data set into device buffer
       send_input(queue);
       int xxx=0;
+      struct timeval t1,t2;
+      	double timeInMilliseconds;
       // Execute kernel
       {
 	cl_event prof_event;
 	cl_ulong start, end;
-	struct timeval t1,t2;
-	double timeInMilliseconds;
+
+
 	// global domain size for our calculation
 	size_t global[2] = { SIZE, SIZE};
 	// local domain size for our calculation
@@ -286,18 +288,12 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	xxx= (xxx+1)%2;
 
 
-	}while(--iter > 0 );// && --iter > -4);
+	}while(!(is_done(queue)));// && --iter > -4);
 
 
 
-	gettimeofday (&t2,NULL);
 
-	// Check performance
-	timeInMilliseconds = (double)TIME_DIFF(t1, t2)/1000;
 
-	printf("\tComputation performed in %lf ms over device #%d\n",
-	       timeInMilliseconds,
-	       dev);
 
 	clReleaseEvent(prof_event);
       }
@@ -305,8 +301,18 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       // Read back the results from the device to verify the output
       retrieve_output(queue,xxx);
 
+      gettimeofday (&t2,NULL);
+      // Check performance
+      timeInMilliseconds = (double)TIME_DIFF(t1, t2)/1000;
+
+      printf("\tComputation performed in %lf ms over device #%d\n",
+	     timeInMilliseconds,
+	     dev);
+
       // Validate computation
       check_output_data();
+
+
 
       clReleaseCommandQueue(queue);
     }
