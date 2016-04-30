@@ -333,7 +333,7 @@ static inline int compute_omp (sand_t sand)
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
-    int chunk = (DIM-2)/nthreads;
+    int chunk = compute_chunk(nthreads);
     unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
 
     do {
@@ -401,6 +401,22 @@ static inline int compute_omp_iter (sand_t sand)
 #pragma omp single // barrier
       change = 0;
 
+
+      // FRONTIER INF
+      int inf_frontier = myid*chunk+1;
+      for (int y = inf_frontier-sup; y < inf_frontier && y > 1; y++) {
+	assert(false);
+	for (int x = 1; x < DIM-1; x++) {
+	  int val = sand[y][x];
+	  val &= 3;
+	  val += sand[y-1][x] / 4
+	    + sand[y+1][x] / 4
+	    + sand[y][x-1] / 4
+	    + sand[y][x+1] / 4;
+	  mysand[y][x] = val;
+	}
+      }
+
       // ITERATIONS
       for (int it = 0; it < iter; it++) {
 #pragma omp for schedule(static, chunk)
@@ -418,21 +434,8 @@ static inline int compute_omp_iter (sand_t sand)
 	  }
 	} // END PARALLEL FOR
 
-	// FRONTIER
-	int inf_frontier = myid*chunk+1;
+	// FRONTIER SUP
 	int sup_frontier = myid*chunk+chunk+1;
-	for (int y = inf_frontier-sup; y < inf_frontier && y > 1; y++) {
-	  assert(false);
-	  for (int x = 1; x < DIM-1; x++) {
-	    int val = sand[y][x];
-	    val &= 3;
-	    val += sand[y-1][x] / 4
-	      + sand[y+1][x] / 4
-	      + sand[y][x-1] / 4
-	      + sand[y][x+1] / 4;
-	    mysand[y][x] = val;
-	  }
-	}
 	for (int y = sup_frontier; y < sup_frontier+sup && y < DIM-1; y++) {
 	  assert(false);
 	  for (int x = 1; x < DIM-1; x++) {
@@ -852,21 +855,21 @@ int main (int argc, char **argv)
 #if METHOD == TEST
   sand_t ref = create_sand_array(DIM);
   unsigned long ref_time = 0;
-  int repeat = 3;
+  int repeat = 1;
 
   // NOTE: We use the previous best compute time for reference
 
   ref_time = process("SEQ REF",
   		     ref, ref, compute_naive, ref_time, true, repeat);
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL", */
-  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL",
+  			   ref, sand, compute_eucl, ref_time, true, repeat));
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL SWAP", */
-  /* 			   ref, sand, compute_eucl_swap, ref_time, */
-  /* 			   false, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL SWAP",
+  			   ref, sand, compute_eucl_swap, ref_time,
+  			   true, repeat));
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
@@ -879,32 +882,32 @@ int main (int argc, char **argv)
 
   // NOTE: We use best sequential time for reference
 
-  /* int max = omp_get_max_threads(); */
-  /* for (int i = 1; i <= max; i++) { */
-  /* omp_set_num_threads(i); */
+  int max = omp_get_max_threads();
+  for (int i = 1; i <= max; i++) {
+  omp_set_num_threads(i);
 
-  /*   printf("NTHREADS %d\n", omp_get_max_threads()); */
+    printf("NTHREADS %d\n", omp_get_max_threads());
 
-  /* process ("PAR OMP", */
-  /* 	   ref, sand, compute_omp, ref_time, false, repeat); */
+    process ("PAR OMP",
+	     ref, sand, compute_omp, ref_time, false, repeat);
 
-  /* /\* process ("PAR OMP TILE", *\/ */
-  /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
+    /* process ("PAR OMP TILE", */
+    /* 	     ref, sand, compute_omp_tile, ref_time, false, repeat); */
 
-  process ("PAR OMP SWAP",
+    process ("PAR OMP SWAP",
   	     ref, sand, compute_omp_swap, ref_time, false, repeat);
 
-  /* process ("PAR OMP SWAP TILE", */
-  /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
+    /* process ("PAR OMP SWAP TILE", */
+    /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
 
 
-  /* process ("PAR OMP SWAP NOWAIT", */
-  /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+    /* process ("PAR OMP SWAP NOWAIT", */
+    /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-  /* process ("PAR OMP ITER", */
-  /* 	   ref, sand, compute_omp_iter, ref_time, false, repeat); */
+    /* process ("PAR OMP ITER", */
+    /* 	     ref, sand, compute_omp_iter, ref_time, false, repeat); */
 
-  /* } */
+  }
 
   fprintf(stderr,"\n");
   sand_init(sand);

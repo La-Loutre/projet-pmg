@@ -3,7 +3,7 @@ ARCH            := $(shell uname -s | tr a-z A-Z)
 PROG	:=	sandpiles
 BINDIR = ../bin
 CC	= gcc
-CFLAGS := -g -O3 -std=c99 -Wno-deprecated-declarations -D DIM=$(DIM) 	\
+CFLAGS := -g -O3 -march=native -std=c99 -Wno-deprecated-declarations -D DIM=$(DIM) 	\
 -D CASE=$(CASE) -D METHOD=$(METHOD)
 
 ifeq ($(ARCH),DARWIN)
