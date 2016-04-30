@@ -1,3 +1,4 @@
+MAKEDOC= make -C rapport
 MAKE= make -C src
 BINDIR= bin
 
@@ -50,5 +51,9 @@ opencl:
 	$(MAKE) METHOD=0 CASE=1 DIM=128
 	./bin/sandpiles-m0-c1-d128
 
+
+doc:
+	$(MAKEDOC) doc
 clean:
+	$(MAKEDOC) clean
 	$(MAKE) clean

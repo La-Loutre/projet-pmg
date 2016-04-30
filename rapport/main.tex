@@ -1,0 +1,27 @@
+\documentclass[a4paper, 12pt, final]{article}
+\usepackage[francais]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[french]{varioref}
+\usepackage[top=2cm, bottom=2cm, left=2cm, right=2cm, a4paper]{geometry}
+\usepackage[colorlinks=true, linkcolor=black, citecolor=black]{hyperref}
+\usepackage{amsmath}
+\usepackage{caption}
+\usepackage{csquotes}
+\usepackage{soul}
+\usepackage{graphicx}
+
+% rename table and figure
+\addto\captionsfrench{\renewcommand{\figurename}{Figure}}
+\addto\captionsfrench{\renewcommand{\tablename}{Table}}
+\addto\captionsfrench{\renewcommand{\chaptername}{Partie}}
+
+\begin{document}
+\include{title}
+\tableofcontents
+%% \include{intro}
+%% \include{concl}
+\include{choix}
+\include{res}
+%% \include{annexes}
+\end{document}
