@@ -856,17 +856,17 @@ int main (int argc, char **argv)
 
   // NOTE: We use the previous best compute time for reference
 
-  /* ref_time = process("SEQ REF", */
-  /* 		     ref, ref, compute_naive, ref_time, true, repeat); */
+  ref_time = process("SEQ REF",
+  		     ref, ref, compute_naive, ref_time, true, repeat);
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL", */
   /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL SWAP",
-  			   ref, sand, compute_eucl_swap, ref_time,
-  			   false, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL SWAP", */
+  /* 			   ref, sand, compute_eucl_swap, ref_time, */
+  /* 			   false, repeat)); */
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
@@ -891,8 +891,8 @@ int main (int argc, char **argv)
   /* /\* process ("PAR OMP TILE", *\/ */
   /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
 
-  /* process ("PAR OMP SWAP", */
-  /* 	     ref, sand, compute_omp_swap, ref_time, false, repeat); */
+  process ("PAR OMP SWAP",
+  	     ref, sand, compute_omp_swap, ref_time, false, repeat);
 
   /* process ("PAR OMP SWAP TILE", */
   /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
