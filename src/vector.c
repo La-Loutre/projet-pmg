@@ -58,7 +58,9 @@ static void alloc_buffers_and_user_data(cl_context context)
     error("Failed to allocate changed buffer");
 }
 
-static void check_output_data()
+static void check_output_data(char *name,
+			      unsigned long ref_time,
+			      unsigned long compute_time)
 {
   // XXX:
 
@@ -79,7 +81,8 @@ static void check_output_data()
     // print_matrix(ref,DIM);
     return cpt;
 }
-  printf("missed %d times\n",check_matrix(&ref[0][0], output_data));
+  timeandcheck("OPENCL", ref_time, compute_time, &ref[0][0], output_data,
+	       check_matrix);
 }
 
 static void free_buffers_and_user_data(void)
@@ -315,7 +318,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	     dev);
 
       // Validate computation
-      check_output_data();
+      check_output_data((dtype == CL_DEVICE_TYPE_GPU) ? "OPENCL GPU" : "OPENCL CPU", ref_time, timeInMilliseconds);
 
 
 

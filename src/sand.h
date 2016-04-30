@@ -11,8 +11,9 @@ void print_matrix(sand_t sand, int size);
 int check_matrix(sand_t ref, sand_t sand);
 void timeandcheck(char *name, unsigned long ref_time,
 		  unsigned long compute_time,
-		  sand_t ref,
-		  sand_t sand);
+		  void* ref,
+		  void* sand,
+		  int (*check_func) (void*, void*));
 unsigned long process(char *name,
 			sand_t ref,
 			sand_t sand,

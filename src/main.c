@@ -862,14 +862,14 @@ int main (int argc, char **argv)
   ref_time = process("SEQ REF",
   		     ref, ref, compute_naive, ref_time, true, repeat);
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL",
-  			   ref, sand, compute_eucl, ref_time, true, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL", */
+  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL SWAP",
-  			   ref, sand, compute_eucl_swap, ref_time,
-  			   true, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL SWAP", */
+  /* 			   ref, sand, compute_eucl_swap, ref_time, */
+  /* 			   true, repeat)); */
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
@@ -882,14 +882,14 @@ int main (int argc, char **argv)
 
   // NOTE: We use best sequential time for reference
 
-  int max = omp_get_max_threads();
-  for (int i = 1; i <= max; i++) {
-  omp_set_num_threads(i);
+  /* int max = omp_get_max_threads(); */
+  /* for (int i = 1; i <= max; i++) { */
+  /* omp_set_num_threads(i); */
 
     printf("NTHREADS %d\n", omp_get_max_threads());
 
-    process ("PAR OMP",
-	     ref, sand, compute_omp, ref_time, false, repeat);
+    /* process ("PAR OMP", */
+    /* 	     ref, sand, compute_omp, ref_time, false, repeat); */
 
     /* process ("PAR OMP TILE", */
     /* 	     ref, sand, compute_omp_tile, ref_time, false, repeat); */
@@ -907,7 +907,7 @@ int main (int argc, char **argv)
     /* process ("PAR OMP ITER", */
     /* 	     ref, sand, compute_omp_iter, ref_time, false, repeat); */
 
-  }
+  /* } */
 
   fprintf(stderr,"\n");
   sand_init(sand);

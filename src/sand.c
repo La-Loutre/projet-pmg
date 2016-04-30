@@ -87,8 +87,9 @@ int check_matrix(sand_t ref, sand_t sand)
 void timeandcheck(char *name,
 		  unsigned long ref_time,
 		  unsigned long compute_time,
-		  sand_t ref,
-		  sand_t sand)
+		  void* ref,
+		  void* sand,
+		  int (*check_func) (void*, void*))
 {
   fprintf(stdout, "%s %ld.%03ld ms ",
 	  name, compute_time/1000, compute_time%1000);
@@ -102,7 +103,7 @@ void timeandcheck(char *name,
   }
   fprintf(stdout, "%.2f× ", speedup);
 
-  int misses = check_matrix(ref, sand);
+  int misses = check_func(ref, sand);
   float size = (DIM-2)*(DIM-2);
   float pct = (misses*100)/size;
   if (misses == 0)
@@ -137,7 +138,7 @@ unsigned long process(char *name,
     compute_time += TIME_DIFF(t1, t2);
   }
   compute_time /= repeat;
-  timeandcheck(name, ref_time, compute_time, ref, sand);
+  timeandcheck(name, ref_time, compute_time, ref, sand, check_matrix);
   return compute_time;
 }
 
