@@ -19,43 +19,52 @@
 #define KERNEL_NAME  "sandpiles"
 #define KERNEL_FILE  "src/compute.cl"
 
-unsigned SIZE = DIM * DIM;
+unsigned SIZE = DIM;
 unsigned TILE = 16;
 
-unsigned *input_data, *output_data;
+unsigned *input_data, *output_data,*changed_data;
 sand_t ref, sand;
 
 cl_mem input_buffer;  // device memory used for input data
 cl_mem output_buffer;  // device memory used for output data
-
+cl_mem changed_buffer;
 
 static void alloc_buffers_and_user_data(cl_context context)
 {
   // CPU side
   input_data = &sand[0][0];
-  output_data = malloc(SIZE * sizeof(unsigned));
-
+  print_matrix(sand,DIM);
+  output_data = malloc(SIZE * SIZE * sizeof(unsigned));
+  changed_data = malloc(sizeof(unsigned));
+  *changed_data = 0;
   // Allocate buffers inside device memory
-  input_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) * SIZE, NULL, NULL);
+  input_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) * SIZE * SIZE, NULL, NULL);
   if (!input_buffer)
     error("Failed to allocate input buffer");
 
-  output_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) * SIZE, NULL, NULL);
+  output_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) * SIZE * SIZE, NULL, NULL);
   if (!output_buffer)
     error("Failed to allocate output buffer");
+
+  changed_buffer = clCreateBuffer(context,  CL_MEM_READ_WRITE,  sizeof(unsigned) , NULL, NULL);
+  if (!changed_buffer)
+    error("Failed to allocate changed buffer");
 }
 
 static void check_output_data()
 {
   // XXX:
+
   int check_matrix(unsigned *ref, unsigned *sand)
   {
     int cpt = 0;
-    for(int i = 1; i < DIM-1; i++) {
-      for(int j = 1; j < DIM-1; j++) {
-	if (ref[i*DIM+j] != sand[i*DIM+j])
-	  cpt++;
+    for(int i = 0; i < DIM; i++) {
+      for(int j = 0; j < DIM; j++) {
+	printf("[%d]",output_data[j+i*DIM],j+i*DIM);
+	/* if (ref[i*DIM+j] != sand[i*DIM+j]) */
+	/*   cpt++; */
       }
+      printf("\n\n");
     }
     return cpt;
 }
@@ -65,9 +74,10 @@ static void check_output_data()
 static void free_buffers_and_user_data(void)
 {
   free(output_data);
-
+  free(changed_data);
   clReleaseMemObject(input_buffer);
   clReleaseMemObject(output_buffer);
+  clReleaseMemObject(changed_buffer);
 }
 
 static void send_input(cl_command_queue queue)
@@ -75,8 +85,10 @@ static void send_input(cl_command_queue queue)
   cl_int err;
 
   err = clEnqueueWriteBuffer(queue, input_buffer, CL_TRUE, 0,
-			     sizeof(unsigned) * SIZE, input_data, 0, NULL, NULL);
+			     sizeof(unsigned) * SIZE * SIZE, input_data, 0, NULL, NULL);
   check(err, "Failed to write to input array");
+
+
 }
 
 static void retrieve_output(cl_command_queue queue)
@@ -84,8 +96,19 @@ static void retrieve_output(cl_command_queue queue)
   cl_int err;
 
   err = clEnqueueReadBuffer(queue, output_buffer, CL_TRUE, 0,
-			    sizeof(unsigned) * SIZE, output_data, 0, NULL, NULL );
+			    sizeof(unsigned) * SIZE * SIZE, output_data, 0, NULL, NULL );
   check(err, "Failed to read output array");
+}
+static int is_done(cl_command_queue queue)
+{
+  cl_int err;
+  fprintf(stderr,"CHANGED = %d",changed_data[0]);
+  err = clEnqueueReadBuffer(queue, changed_buffer, CL_TRUE, 0,
+			    sizeof(unsigned) ,changed_data, 0, NULL, NULL );
+  check(err, "Failed to read changed value");
+  fprintf(stderr,"CHANGED = %d",changed_data[0]);
+  return !(*changed_data);
+
 }
 
 void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool gpu)
@@ -211,26 +234,27 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	struct timeval t1,t2;
 	double timeInMilliseconds;
 	// global domain size for our calculation
-	size_t global[1] = { SIZE };
+	size_t global[2] = { SIZE, SIZE};
 	// local domain size for our calculation
-	size_t local[1]  = { TILE };
+	size_t local[2]  = { TILE , TILE};
 
-	printf("\t%d Threads in workgroups of %d\n", global[0], local[0]);
+	printf("\t%d Threads in workgroups of %dx%d\n", global[0], local[0],local[1]);
 
 	// Set kernel arguments
 	err = 0;
 	err  = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_buffer);
 	err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &output_buffer);
+	err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &changed_buffer);
 	check(err, "Failed to set kernel arguments");
 
-	int iterations = 1000;
+
 
 	gettimeofday (&t1, NULL);
-	do {
-	  err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, global, local,
-				       0, NULL, &prof_event);
-	  check(err, "Failed to execute kernel");
-	} while(true && iterations-- > 0);
+
+	err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local,
+				     0, NULL, &prof_event);
+	check(err, "Failed to execute kernel");
+
 
 	// Wait for the command commands to get serviced before reading back results
 	clFinish(queue);
@@ -246,7 +270,8 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 
 	clReleaseEvent(prof_event);
       }
-
+     if (is_done(queue))
+	fprintf(stderr,"CHANGEMENT %d\n\n",*changed_data);
       // Read back the results from the device to verify the output
       retrieve_output(queue);
 
