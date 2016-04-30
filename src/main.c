@@ -370,14 +370,37 @@ static inline int compute_omp (sand_t sand)
 
 static inline int compute_omp_iter (sand_t sand)
 {
-
+  int iter = 2;
+  int sup = iter-1;
   int change = 0;
-#pragma omp parallel shared(change)
+  int NEWDIM = DIM+2*sup;
+
+  unsigned new_sand[NEWDIM][NEWDIM];
+  for(int y = 0; y < DIM; y++)
+    for(int x = 0; x < DIM; x++) {
+      if (x == 0)
+	for (int i = 0; i < sup; i++)
+	new_sand[y+sup][x+sup-i] = 99;
+      if (x == NEWDIM-1)
+	for (int i = 0; i < sup; i++)
+	new_sand[y+sup][x+sup+i] = 99;
+      new_sand[y+sup][x+sup] = sand[y][x];
+    }
+  memset(&new_sand[0][0], 99, sup*NEWDIM*sizeof(unsigned));
+  memset(&new_sand[NEWDIM-sup][0], 99, sup*NEWDIM*sizeof(unsigned));
+
+  for (int y = 1; y < DIM-1; y++)
+    for (int x = 1; x < DIM-1; x++)
+      if (new_sand[y][x] != sand[y][x])
+	assert(false);
+
+  return 1;
+#pragma omp parallel
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
     int chunk = (DIM-2)/nthreads;
-    unsigned mysand [DIM][DIM]; // NOTE: base pointer offset, should be fast
+    unsigned mysand [DIM+iter-1][DIM+iter-1]; // NOTE: base pointer offset, should be fast
 
     do {
 
@@ -385,21 +408,24 @@ static inline int compute_omp_iter (sand_t sand)
 #pragma omp single // barrier
       change = 0;
 
+      for (int it = 0; it < iter; it++) {
 #pragma omp for schedule(static, chunk) reduction(|:change)
-      for (int y = 1; y < DIM-1; y++) {
-	for (int x = 1; x < DIM-1; x++) {
-	  int val = sand[y][x];
-	  // NOTE: works only if MAX_HEIGHT == 4
-	  change = change | (val >> 2);
-	  val &= 3;
-	  val += sand[y-1][x] / 4
-	    + sand[y+1][x] / 4
-	    + sand[y][x-1] / 4
-	    + sand[y][x+1] / 4;
-	  mysand[y][x] = val;
-	}
-      } // END PARALLEL FOR
+	for (int y = 1; y < DIM-1; y++) {
+	  for (int x = 1; x < DIM-1; x++) {
+	    int val = new_sand[y][x];
+	    // NOTE: works only if MAX_HEIGHT == 4
+	    change = change | (val >> 2);
+	    val &= 3;
+	    val += new_sand[y-1][x] / 4
+	      + new_sand[y+1][x] / 4
+	      + new_sand[y][x-1] / 4
+	      + new_sand[y][x+1] / 4;
+	    mysand[y][x] = val;
+	  }
+	} // END PARALLEL FOR
+      }
 
+#pragma omp barrier
       // SYNCHRONISATION
       if (change) {
 #pragma omp for schedule(static, chunk)
@@ -410,7 +436,7 @@ static inline int compute_omp_iter (sand_t sand)
 	} // END PARALLEL FOR
       }
     } while(change);
-  } // END PARALLE
+  } // END PARALLEL
   return change;
 }
 
@@ -805,8 +831,8 @@ int main (int argc, char **argv)
 
   // NOTE: We use the previous best compute time for reference
 
-  /* ref_time = process("SEQ REF", */
-  /* 		     ref, ref, compute_naive, ref_time, true, repeat); */
+  ref_time = process("SEQ REF",
+  		     ref, ref, compute_naive, ref_time, true, repeat);
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL", */
@@ -818,42 +844,41 @@ int main (int argc, char **argv)
   /* 			   false, repeat)); */
 
   /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL CHUNK", */
+  /* 			   ref, sand, compute_eucl_chunk, ref_time, */
+  /* 			   false, repeat)); */
+  /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL VECTOR", */
   /* 			   ref, sand, compute_eucl_vector, ref_time, */
   /* 			   false, repeat)); */
 
   // NOTE: We use best sequential time for reference
 
-  /* int max = omp_get_max_threads(); */
+  int max = omp_get_max_threads();
   /* for (int i = 1; i <= max; i++) { */
-  /*   omp_set_num_threads(i); */
+  /* omp_set_num_threads(i); */
+  omp_set_num_threads(max/2);
   /*   printf("NTHREADS %d\n", omp_get_max_threads()); */
 
-    /* process ("PAR OMP", */
-    /* 	     ref, sand, compute_omp, ref_time, false, repeat); */
+  process ("PAR OMP",
+  	   ref, sand, compute_omp, ref_time, false, repeat);
 
-    /* /\* process ("PAR OMP TILE", *\/ */
-    /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
+  /* /\* process ("PAR OMP TILE", *\/ */
+  /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
 
-    process ("PAR OMP SWAP",
-    	     ref, sand, compute_omp_swap, ref_time, false, repeat);
+  /* process ("PAR OMP SWAP", */
+  /* 	     ref, sand, compute_omp_swap, ref_time, false, repeat); */
 
-    free(*sand);
-    free(sand);
-    sand = create_sand_array_parallel(DIM);
-
-    process ("PAR OMP SWAP BETTER MALLOC ?",
-    	     ref, sand, compute_omp_swap, ref_time, false, repeat);
-
-    /* process ("PAR OMP SWAP TILE", */
-    /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
+  /* process ("PAR OMP SWAP TILE", */
+  /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
 
 
-    /* process ("PAR OMP SWAP NOWAIT", */
-    /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+  /* process ("PAR OMP SWAP NOWAIT", */
+  /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-    /* process ("PAR OMP ITER", */
-    /* 	    ref, sand, compute_omp_iter, ref_time, false, repeat); */
+  process ("PAR OMP ITER",
+  	   ref, sand, compute_omp_iter, ref_time, false, repeat);
+
   /* } */
   /* fprintf(stderr,"\n"); */
   /* sand_init(sand); */
