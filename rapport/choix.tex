@@ -51,7 +51,7 @@ sur la case, mais sans modifier le contenu des cases voisines. Avec
 cette approche, à chaque itération et pour chaque case, on effectue 5
 accès lecture et un accès écriture contre 5 accès lecture et écriture
 pour l'autre approche. Il s'agit de la méthode
-\texttt{compute\eucl\_swap} (algorithme~).
+\texttt{compute\_eucl\_swap} (algorithme~TODO).
 
 L'incovenient de cette approche est qu'on ne peut pas lire et écrire
 dans la même matrice sinon les résultats seraient faux. Ainsi, on
@@ -77,7 +77,7 @@ d'OpenMP. Il s'agit de la méthode \texttt{compute\_omp}.  Nous
 répartissons le traitement de chaque ligne de la matrice sur un
 ensemble de threads. Un thread se voit donc attribuer
 $(DIM-2)/nthreads$ lignes successives. Comme pour
-\texttt{compute\eucl\_swap}, lorsqu'on parcourt une case, on ne
+\texttt{compute\_eucl\_swap}, lorsqu'on parcourt une case, on ne
 modifie pas les cases voisines. Cela permet de ne pas modifier les
 parties de la matrices gérées par d'autres threads.
 
@@ -97,7 +97,7 @@ de chaque case.
 
 Une autre approche a été pensée pour éviter le rapatriement des
 nouvelles valeurs sur la matrice de départ. Celle-ci se base plus
-sur \texttt{compute\eucl\_swap}. Chaque thread ne travaille plus sur
+sur \texttt{compute\_eucl\_swap}. Chaque thread ne travaille plus sur
 une matrice privée mais on dispose de deux matrices partagées, une en
 lecture et une en écriture.
 
