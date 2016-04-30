@@ -820,7 +820,7 @@ int main (int argc, char **argv)
 #if METHOD == TEST
   sand_t ref = create_sand_array(DIM);
   unsigned long ref_time = 0;
-  int repeat = 3;
+  int repeat = 1;
 
   // NOTE: We use the previous best compute time for reference
 

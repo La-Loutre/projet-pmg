@@ -20,7 +20,7 @@
 #define KERNEL_FILE  "src/compute.cl"
 
 unsigned SIZE = DIM;
-unsigned TILE = 4;
+unsigned TILE = 16;
 
 unsigned *input_data, *output_data,*changed_data,*changed_data_reset;
 sand_t ref, sand;
