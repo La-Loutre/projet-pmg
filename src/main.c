@@ -863,10 +863,10 @@ int main (int argc, char **argv)
   /* 		  process ("SEQ EUCL", */
   /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL SWAP", */
-  /* 			   ref, sand, compute_eucl_swap, ref_time, */
-  /* 			   false, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL SWAP",
+  			   ref, sand, compute_eucl_swap, ref_time,
+  			   false, repeat));
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
