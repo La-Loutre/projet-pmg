@@ -799,14 +799,14 @@ int main (int argc, char **argv)
 #endif // METHOD PAR OMP SEM
 
 #if METHOD == TEST
-  unsigned **ref = create_sand_array(DIM);
+  sand_t ref = create_sand_array(DIM);
   unsigned long ref_time = 0;
   int repeat = 3;
 
   // NOTE: We use the previous best compute time for reference
 
-  ref_time = process("SEQ REF",
-  		     ref, ref, compute_naive, ref_time, true, repeat);
+  /* ref_time = process("SEQ REF", */
+  /* 		     ref, ref, compute_naive, ref_time, true, repeat); */
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL", */
@@ -827,7 +827,7 @@ int main (int argc, char **argv)
   /* int max = omp_get_max_threads(); */
   /* for (int i = 1; i <= max; i++) { */
   /*   omp_set_num_threads(i); */
-    /* printf("NTHREADS %d\n", omp_get_max_threads()); */
+  /*   printf("NTHREADS %d\n", omp_get_max_threads()); */
 
     /* process ("PAR OMP", */
     /* 	     ref, sand, compute_omp, ref_time, false, repeat); */
@@ -835,8 +835,15 @@ int main (int argc, char **argv)
     /* /\* process ("PAR OMP TILE", *\/ */
     /* /\* 	   ref, sand, compute_omp_tile, ref_time, false, repeat); *\/ */
 
-    /* process ("PAR OMP SWAP", */
-    /* 	     ref, sand, compute_omp_swap, ref_time, false, repeat); */
+    process ("PAR OMP SWAP",
+    	     ref, sand, compute_omp_swap, ref_time, false, repeat);
+
+    free(*sand);
+    free(sand);
+    sand = create_sand_array_parallel(DIM);
+
+    process ("PAR OMP SWAP BETTER MALLOC ?",
+    	     ref, sand, compute_omp_swap, ref_time, false, repeat);
 
     /* process ("PAR OMP SWAP TILE", */
     /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
@@ -848,9 +855,9 @@ int main (int argc, char **argv)
     /* process ("PAR OMP ITER", */
     /* 	    ref, sand, compute_omp_iter, ref_time, false, repeat); */
   /* } */
-  fprintf(stderr,"\n");
-  sand_init(sand);
-  start(ref, sand, ref_time, true, true);
+  /* fprintf(stderr,"\n"); */
+  /* sand_init(sand); */
+  /* start(ref, sand, ref_time, true, true); */
 
   puts("\n");
   return 0;

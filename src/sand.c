@@ -168,5 +168,27 @@ sand_t create_sand_array(int size)
   for (int i = 0; i < size; ++i)
     two_dim_sand_array[i] = &raw_sand_array[i*size];
   return two_dim_sand_array;
+}
 
+sand_t create_sand_array_parallel(int size)
+{
+  unsigned **two_dim_sand_array = malloc(sizeof(unsigned**) * size);
+#pragma omp parallel
+  {
+    int chunk = (size-2) / omp_get_num_threads();
+    unsigned *raw_sand_array = malloc(sizeof(unsigned*) * size * chunk);
+#pragma omp for schedule(static, chunk)
+    for (int y = 1; y < size-1; ++y) {
+      if (y == 1) {
+	unsigned *firstline = malloc(sizeof(unsigned*) * size);
+	two_dim_sand_array[y-1] = &firstline[0];
+      }
+      if (y == size-2) {
+	unsigned *lastline = malloc(sizeof(unsigned*) * size);
+	two_dim_sand_array[y+1] = &lastline[0];
+      }
+      two_dim_sand_array[y] = &raw_sand_array[y*(size-1)];
+    }
+  }
+  return two_dim_sand_array;
 }
