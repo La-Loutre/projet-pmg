@@ -370,37 +370,24 @@ static inline int compute_omp (sand_t sand)
 
 static inline int compute_omp_iter (sand_t sand)
 {
-  int iter = 2;
+  int iter = 1;
   int sup = iter-1;
   int change = 0;
   int NEWDIM = DIM+2*sup;
 
+  // SEND TO DATA TO EXTENDED MATRIX
   unsigned new_sand[NEWDIM][NEWDIM];
-  for(int y = 0; y < DIM; y++)
-    for(int x = 0; x < DIM; x++) {
-      if (x == 0)
-	for (int i = 0; i < sup; i++)
-	new_sand[y+sup][x+sup-i] = 99;
-      if (x == NEWDIM-1)
-	for (int i = 0; i < sup; i++)
-	new_sand[y+sup][x+sup+i] = 99;
+  memset(&new_sand[0][0], 0, NEWDIM*NEWDIM*sizeof(unsigned));
+  for(int y = 1; y < DIM-1; y++)
+    for(int x = 1; x < DIM-1; x++)
       new_sand[y+sup][x+sup] = sand[y][x];
-    }
-  memset(&new_sand[0][0], 99, sup*NEWDIM*sizeof(unsigned));
-  memset(&new_sand[NEWDIM-sup][0], 99, sup*NEWDIM*sizeof(unsigned));
 
-  for (int y = 1; y < DIM-1; y++)
-    for (int x = 1; x < DIM-1; x++)
-      if (new_sand[y][x] != sand[y][x])
-	assert(false);
-
-  return 1;
 #pragma omp parallel
   {
     int nthreads = omp_get_num_threads();
     int myid = omp_get_thread_num();
     int chunk = (DIM-2)/nthreads;
-    unsigned mysand [DIM+iter-1][DIM+iter-1]; // NOTE: base pointer offset, should be fast
+    unsigned mysand [NEWDIM][NEWDIM];
 
     do {
 
@@ -408,10 +395,11 @@ static inline int compute_omp_iter (sand_t sand)
 #pragma omp single // barrier
       change = 0;
 
+      // ITERATIONS
       for (int it = 0; it < iter; it++) {
 #pragma omp for schedule(static, chunk) reduction(|:change)
-	for (int y = 1; y < DIM-1; y++) {
-	  for (int x = 1; x < DIM-1; x++) {
+	for (int y = 1+sup; y < DIM-1; y++) {
+	  for (int x = 1+sup; x < DIM-1; x++) {
 	    int val = new_sand[y][x];
 	    // NOTE: works only if MAX_HEIGHT == 4
 	    change = change | (val >> 2);
@@ -429,14 +417,19 @@ static inline int compute_omp_iter (sand_t sand)
       // SYNCHRONISATION
       if (change) {
 #pragma omp for schedule(static, chunk)
-	for (int y = 1; y < DIM-1; y++) {
-	  for (int x = 1; x < DIM-1; x++) {
-	    sand[y][x] = mysand[y][x];
+	for (int y = 1+sup; y < DIM-1; y++) {
+	  for (int x = 1+sup; x < DIM-1; x++) {
+	    new_sand[y][x] = mysand[y][x];
 	  }
 	} // END PARALLEL FOR
       }
     } while(change);
   } // END PARALLEL
+
+  // RETREIVE DATA FROM EXTENDED MATRIX
+  for(int y = 1; y < DIM-1; y++)
+    for(int x = 1; x < DIM-1; x++)
+      sand[y][x] = new_sand[y+sup][x+sup];
   return change;
 }
 
@@ -834,14 +827,14 @@ int main (int argc, char **argv)
   ref_time = process("SEQ REF",
   		     ref, ref, compute_naive, ref_time, true, repeat);
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL", */
-  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL",
+  			   ref, sand, compute_eucl, ref_time, true, repeat));
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL SWAP", */
-  /* 			   ref, sand, compute_eucl_swap, ref_time, */
-  /* 			   false, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL SWAP",
+  			   ref, sand, compute_eucl_swap, ref_time,
+  			   false, repeat));
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL CHUNK", */
