@@ -108,7 +108,8 @@ void timeandcheck(char *name,
   if (misses == 0)
     fprintf(stderr,"%sSUCCESS %s\n", ANSI_COLOR_GREEN, ANSI_COLOR_RESET);
   else
-    fprintf(stderr,"%sFAILURE%s (%.1f%% fails)\n", ANSI_COLOR_RED, ANSI_COLOR_RESET, pct);
+    fprintf(stderr,"%sFAILURE%s (%.1f %% fails)\n", ANSI_COLOR_RED,
+	    ANSI_COLOR_RESET, pct);
 }
 
 unsigned long process(char *name,
