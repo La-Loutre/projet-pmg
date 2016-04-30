@@ -755,9 +755,10 @@ static inline int compute_omp_swap_nowait (sand_t sand)
   return change;
 }
 
-int main (int argc, char **argv)
-{
-  omp_set_nested(1);
+ int main (int argc, char **argv)
+ {
+   omp_set_nested(1);
+   //   omp_set_num_threads(4);
 
   printf("BINDING %d ", omp_get_proc_bind());
   printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
@@ -800,7 +801,7 @@ int main (int argc, char **argv)
 
 #if METHOD == TEST
   unsigned **ref = create_sand_array(DIM);
-  unsigned long ref_time = 999999;
+  unsigned long ref_time = 0;
   int repeat = 1;
 
   // NOTE: We use the previous best compute time for reference
