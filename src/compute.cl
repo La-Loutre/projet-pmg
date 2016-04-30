@@ -36,7 +36,7 @@ __kernel void sandpiles(__global unsigned *read,
       x_real != DIM-1)
      {
     int val = read[pos];
-    change = (val >> 2);
+    change = (val / 4);
     val &= 3;
 
     val += read[pos - DIM] / 4
@@ -46,15 +46,14 @@ __kernel void sandpiles(__global unsigned *read,
 
     write[pos] = val;
 
-    if (change == 1)
-      *changed= 1;
+    *changed |= change;
 
    }
-   else
-     {
+  else
+    {
+      write[pos] = 0;
+    }
 
-       write[pos] = -1;
-     }
 
 
 }

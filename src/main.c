@@ -871,11 +871,11 @@ int main (int argc, char **argv)
 
   process ("PAR OMP ITER",
   	   ref, sand, compute_omp_iter, ref_time, false, repeat);
-
+  print_matrix(sand,DIM);
   /* } */
   /* fprintf(stderr,"\n"); */
-  /* sand_init(sand); */
-  /* start(ref, sand, ref_time, true, true); */
+
+  start(ref, sand, ref_time, true, true);
 
   puts("\n");
   return 0;
