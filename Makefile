@@ -48,8 +48,8 @@ run:
 
 opencl:
 	$(MAKE) clean
-	$(MAKE) METHOD=0 CASE=1 DIM=512
-	./bin/sandpiles-m0-c1-d512
+	$(MAKE) METHOD=0 CASE=1 DIM=256
+	./bin/sandpiles-m0-c1-d256
 
 
 doc:

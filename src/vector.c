@@ -7,7 +7,7 @@
 #else
 #  include <CL/opencl.h>
 #endif
-
+#include <assert.h>
 #include "util.h"
 #include "vector.h"
 #include "sand.h"
@@ -62,20 +62,24 @@ static void check_output_data()
 {
   // XXX:
 
-  int check_matrix(unsigned *ref, unsigned *sand)
+  int check_matrix(unsigned *reff, unsigned *sand)
   {
     int cpt = 0;
-    for(int i = 0; i < DIM; i++) {
-      for(int j = 0; j < DIM; j++) {
+    for(int i = 1; i < DIM-1; i++) {
+      for(int j = 1; j < DIM-1; j++) {
 	//	printf("[%d]",sand[j+i*DIM],j+i*DIM);
-	if (ref[i*DIM+j] != sand[i*DIM+j])
+	if (reff[i*DIM+j] != sand[i*DIM+j]){
+	  // printf("%d!=%d case %d:%d\n\n",reff[i*DIM+j],sand[i*DIM+j],i,j);
 	     cpt++;
+	}
       }
-      //      printf("\n\n");
+      //      printf("\n");
     }
+    //printf("REF\n%d",reff[5][0]);
+    // print_matrix(ref,DIM);
     return cpt;
 }
-  printf("missed %d times\n",check_matrix(&sand[0][0], output_data));
+  printf("missed %d times\n",check_matrix(&ref[0][0], output_data));
 }
 
 static void free_buffers_and_user_data(void)
@@ -98,14 +102,7 @@ static void send_input(cl_command_queue queue)
 
 
 }
-static void send_reset_changed(cl_command_queue queue)
-{
-  cl_int err;
-  unsigned reset = 0;
-  err = clEnqueueWriteBuffer(queue, changed_buffer, CL_TRUE, 0,
-			     sizeof(unsigned) , &reset, 0, NULL, NULL);
-  check(err, "Failed to write to changed_reset");
-}
+
 static void retrieve_output(cl_command_queue queue, int mod)
 {
   cl_int err;
@@ -126,11 +123,19 @@ static int is_done(cl_command_queue queue)
 
   check(err, "Failed to read changed value");
 
-
-  return !(*changed_data);
+  //  fprintf(stderr,"CG : %d\n",*changed_data);
+  return *changed_data == 0;
 
 }
-
+static void send_reset_changed(cl_command_queue queue)
+{
+  cl_int err;
+  unsigned reset = 0;
+  err = clEnqueueWriteBuffer(queue, changed_buffer, CL_TRUE, 0,
+			     sizeof(unsigned) , changed_data_reset, 0, NULL, NULL);
+  check(err, "Failed to write to changed_reset");
+  //  assert(is_done(queue));
+}
 void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool gpu)
 {
   cl_platform_id pf[MAX_PLATFORMS];
@@ -287,9 +292,9 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	clFinish(queue);
 	xxx= (xxx+1)%2;
 
-
+	//	iter +=1;
 	}while(!(is_done(queue)));// && --iter > -4);
-
+	printf("NB ITER = %d",iter);
 
 
 

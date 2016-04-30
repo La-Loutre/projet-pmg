@@ -30,8 +30,8 @@ __kernel void sandpiles(__global unsigned *read,
   int change = 0;
 
 
-  if (y_real != 0 &&
-      y_real != DIM-1 &&
+  if (y_real > 0 &&
+      y_real < DIM-1 &&
       x_real != 0 &&
       x_real != DIM-1)
      {
@@ -45,14 +45,13 @@ __kernel void sandpiles(__global unsigned *read,
       + read[pos + 1] / 4;
 
     write[pos] = val;
-
-    *changed |= change;
-
+    if (change)
+      *changed = 1;//change;//change;
    }
-  else
-    {
-      write[pos] = 0;
-    }
+  /* else */
+  /*   { */
+  /*     write[pos] = 0; */
+  /*   } */
 
 
 
