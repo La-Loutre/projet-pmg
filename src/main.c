@@ -714,7 +714,7 @@ static inline int compute_omp_swap_nowait (sand_t sand)
  int main (int argc, char **argv)
  {
    omp_set_nested(1);
-   omp_set_num_threads(4);
+   //   omp_set_num_threads(4);
 
    printf("BINDING %d ", omp_get_proc_bind());
    printf("NTHREADS %d DIM %d CASE %d\n", omp_get_max_threads(), DIM, CASE);
@@ -781,14 +781,14 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
    // NOTE: We use best sequential time for reference
 
-   process ("PAR OMP",
-   	    ref, sand, compute_omp, ref_time, false, repeat);
+   /* process ("PAR OMP", */
+   /* 	    ref, sand, compute_omp, ref_time, false, repeat); */
 
    /* process ("PAR OMP TILE", */
    /* 	    ref, sand, compute_omp_tile, ref_time, false, repeat); */
 
-   process ("PAR OMP SWAP",
-   	    ref, sand, compute_omp_swap, ref_time, false, repeat);
+    /* process ("PAR OMP SWAP", */
+    /* 	    ref, sand, compute_omp_swap, ref_time, false, repeat); */
 
    /* process ("PAR OMP SWAP TILE", */
    /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
