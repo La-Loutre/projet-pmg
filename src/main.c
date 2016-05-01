@@ -380,7 +380,7 @@ static inline int compute_omp (sand_t sand)
   return change;
 }
 
-static iterations = 10;
+static int iterations = 10;
 static inline int compute_omp_iter_v2 (sand_t sand)
 {
   int iter_target = iterations;

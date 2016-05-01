@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 #include "type.h"
-
+typedef int (*check_func_type) (void *,void *);
 unsigned get (unsigned x, unsigned y, sand_t sand);
 void sand_init (sand_t sand);
 void print_matrix(sand_t sand, int size);

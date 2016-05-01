@@ -78,7 +78,7 @@ static void check_output_data(char *name,
     return cpt;
 }
   timeandcheck("OPENCL", ref_time, compute_time, &ref[0][0], output_data,
-	       check_matrix);
+	       (check_func_type)check_matrix);
 }
 
 static void free_buffers_and_user_data(void)
