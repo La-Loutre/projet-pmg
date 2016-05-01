@@ -380,10 +380,10 @@ static inline int compute_omp (sand_t sand)
 static inline int compute_omp_iter2 (sand_t sand)
 {
   sand[0][1] = 0;
-  int iter_target = 8;
+  int iter_target = 10;
   int change = 0;
   int nthreads = omp_get_max_threads();
-  int chunk = compute_chunk(nthreads);
+  int chunk = (DIM-2)/nthreads+ ((DIM-2)%nthreads!=0?1:0);//compute_chunk(nthreads);
   #pragma omp parallel
   {
 
@@ -493,17 +493,17 @@ static inline int compute_omp_iter2 (sand_t sand)
       	  sand[y][x] = val;
       	}
       }
-      if (nb_iter % 2 ==0)
-      	{
-      	  read = 1 - read;
-      	  write = 1 - write;
-      	  read_from=swap[read];
-      	  write_to=swap[write];
-      	}
+      /* if (nb_iter % 2 ==0) */
+      /* 	{ */
+      /* 	  read = 1 - read; */
+      /* 	  write = 1 - write; */
+      /* 	  read_from=swap[read]; */
+      /* 	  write_to=swap[write]; */
+      /* 	} */
       /* if (myid == 0){ */
       /* 	printf("RESULT\n"); */
       /* 	print_matrix(sand,DIM); */
-
+      /* } */
       /* } */
 
       /* printf("\n"); */
@@ -947,7 +947,7 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
 int main (int argc, char **argv)
 {
-  omp_set_num_threads(2);
+  omp_set_num_threads(4);
   omp_set_nested(1);
 
 
