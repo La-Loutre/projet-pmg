@@ -78,7 +78,24 @@ méthodes séquentielles pour le cas homogène
 (figure~\ref{fig:homoseq128} et~\ref{fig:homoseq512}). Sans la
 suppression de la boucle, cette méthode est plus lente que les autres.
 
-\subsubsection{chunk vector}
+\subsubsection{Vectorisation et détection des zones stables}
+
+Pour la méthode qui vectorise les calculs, nous n'avons pas obtenus
+les performances espérées. La gestion des différents registres prend
+plus de temps que d'effectuer 4 calculs. Cependant peut-être qu'avec
+des registre de 512 bits (AVX) nous aurions obtenus de meilleurs
+résultats. En revanche, les calculs sont corrects.
+
+La version qui détecte les zones stable ne donne aussi pas de bons
+résultats en plus d'avoir quelques bugs.
+
+\subsubsection{Version OpenCL}
+\label{sec:res-opencl}
+
+La version OpenCL sur GPU donne aussi des résultats décevant (speed-up
+de 0,3 pour la matrice de dimension 128 par 128 et 1,3 pour celle de
+512 par 512). Cela est en partie du à la détection de la terminaison
+de l'algorithme.
 
 \subsection{Algorithmes multi-threads}
 
