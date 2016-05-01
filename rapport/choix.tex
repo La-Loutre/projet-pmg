@@ -10,11 +10,17 @@ donnent des résultats corrects. Il s'agit de la méthode
 \texttt{compute\_naïve} (algorithme~\ref{algo:naif}).
 \medskip
 
-\subsection{Stockage en mémoire}
+\subsection{Optimiser l'utilisation du cache}
+\label{sec:cache}
 
 Nous allouons un tableau de taille $DIM*DIM$ et pour nous y faciliter les
 accès, on alloue un deuxième tableau de taille $DIM$ dont chaque case
 pointe sur une ligne différente (de taille $DIM$) du premier tableau.
+
+Dans le cache L1 (32 KB), on peut faire rentrer
+$32*1024/sizeof(unsigned)/DIM$ lignes de la matrice soit 64 lignes
+pour la matrice de dimension 128 et 16 lignes pour celle de dimension
+512. Il est donc naturel de parcourir la matrice ligne par ligne.
 
 \subsection{Algorithmes séquentiels}
 
@@ -84,26 +90,67 @@ seul coup, \texttt{compute\_\-eucl\_\-vector}.
 \subsubsection{Paralléliser une itération de l'algorithme}
 
 Une première solution multi-threads a été réalisée à l'aide
-d'OpenMP. Il s'agit de la méthode \texttt{compute\_omp}.  Nous
-répartissons le traitement de chaque ligne de la matrice sur un
-ensemble de threads. Un thread se voit donc attribuer
-$(DIM-2)/nthreads$ lignes successives. Comme pour
-\texttt{compute\_eucl\_swap}, lorsqu'on parcourt une case, on ne
-modifie pas les cases voisines. Cela permet de ne pas modifier les
-parties de la matrices gérées par d'autres threads.
+d'OpenMP. Il s'agit de la méthode \texttt{compute\_omp}.
+\medskip
+
+Nous avons déjà vu section~\ref{sec:cache} que pacourir la matrice
+ligne par ligne est la façon qui permet d'utiliser au mieux le cache.4
+
+Pour la plupart de nos solutions multi-threads, nous répartissons le
+traitement de chaque ligne de la matrice sur un ensemble de
+threads. Un thread se voit donc attribuer $chunk=(DIM-2)/nthreads$
+lignes successives et ceux de manière statique
+(\texttt{schedule(static, chunk)}). Dans les cas où le nombre de
+lignes à traiter par itération n'est pas multiple de $nthreads$, on
+peut noter que ce nombre est au moins multiple de 2, chaque thread
+traite donc successivement 2 lignes (\texttt{schedule(static,
+  chunk)}).
+
+Les autres politiques d'ordonnacement des threads ne sont pas
+intéressantes ici car les threads font en théorie tous la même
+quantité de calcul.
+
+Comme pour \texttt{compute\_eucl\_swap}, lorsqu'on parcourt une case,
+on ne modifie pas les cases voisines. Cela permet de ne pas modifier
+les parties de la matrices gérées par d'autres threads.
 \medskip
 
 Chaque thread travaille donc sur une matrice privée de taille
-$DIM*DIM$ dans la pile. Une première itération de l'algorithme est
+$DIM*DIM$ allouée dans la pile (simple décalage du pointeur de pile,
+donc à priori rapide). Une première itération de l'algorithme est
 faite, chaque thread modifie sa propre matrice, puis on synchronise
 tous les threads avec une barrière. Cela nous permet de mettre à jour
 la matrice de départ avec les nouvelles valeurs suite au débordement
 de chaque case.
 \medskip
 
-\subsubsection{Paralléliser p-itération de l'algorithme}
+\subsubsection{Paralléliser $p$-itération de l'algorithme}
 
-% TODO: parler de p iter
+Cette méthode appelé \texttt{compute\_omp\_iter} a un fonctionnement
+identique à la méthode \texttt{compute\_omp}. Seulement au lieu de
+synchroniser à chaque itération, un thread va effectuer le traitement
+de p-lignes appartenant à son thread voisin sur le morceau de matrice
+précédant et suivant, puis se synchronise avec les autres après
+$p$-itérations asynchrones.
+\medskip
+
+Chaque thread travaille non pas sur une, mais deux matrices privées de
+taille $DIM*DIM$. Une itération consiste à traiter $chunk$ lignes
+ainsi que les premières lignes des $chunk$ voisin. Traiter
+$p$-itérations consiste à traiter
+$DIM*chunk+2*\sum_{\substack{0<it\leq p \\}}it$ lignes de la matrice
+(sauf pour le premier et dernier morceau de la matrice).
+
+Pour une itération donnée $it$, un thread lit dans
+une de ses deux matrices (la matrice A) puis écrit dans l'autre (la
+matrice B). À l'itération $it+1$, il échange les deux matrices et lit
+donc cette fois dans la matrice B puis écrit dans la matrice A. Après
+$p$-itérations, chaque thread met à jour le contenu de la matrice
+partagée par tous les threads.
+
+Au maximum, on alloue $DIM*DIM*sizeof(unsigned)*nthreads+1$ octets en
+mémoire.
+
 
 \subsubsection{Rapatriement des données}
 
@@ -143,21 +190,23 @@ figure~\ref{fig:nowait}.
   \center{
     \includegraphics[width=10cm]{images/nowait.png}
   }
-  \caption{Utilisation de sémaphore pour retirer les barrières de
-    synchronisation à chaque étape. L'exemple montre 3 threads qui
-    effectuent 4 itérations de l'algorithme. Chaque thread traite
-    $chunk$ lignes de la matrice. Après chaque itération, on échange
-    la matrice de lecture et d'écriture.}
+  \caption{Méthode \texttt{compute\_omp\_swap\_nowait}~: Utilisation
+    de sémaphore pour retirer les barrières de synchronisation à
+    chaque étape. L'exemple montre 3 threads qui effectuent 4
+    itérations de l'algorithme. Chaque thread traite $chunk$ lignes de
+    la matrice. Après chaque itération, on échange la matrice de
+    lecture et d'écriture.}
   \label{fig:nowait}
 \end{figure}
 
 Pour implémenter ces dépendances, nous utilisons un tableau de
-sémaphores de taille $nthreads-1$ et initialisées à 0. Chaque thread
-$t$ (excepté le dernier thread) tente de décrémenter la sémaphore du
-thread $t+1$ avant d'écrire la dernière ligne qui lui est attribuée,
-la ligne frontière entre deux threads. De son côté, le thread $t+1$
-incrémente la sémaphore lorsqu'il a terminé de traiter la première
-ligne qui lui est attribuée.
+sémaphores de taille le nombre de dépendances soit $2*(nthreads-1)$,
+et initialisées à 0. Chaque thread $t$ (excepté le dernier thread)
+tente de décrémenter la sémaphore du thread $t+1$ avant d'écrire la
+dernière ligne qui lui est attribuée, la ligne frontière entre deux
+threads. De son côté, le thread $t+1$ incrémente la sémaphore
+lorsqu'il a terminé de traiter la première ligne qui lui est
+attribuée.
 \medskip
 
 On espère en pratique que les threads travaillent à la même vitesse
@@ -172,18 +221,27 @@ place 100000. Ainsi, chaque thread ayant stabilisé sa matrice s'endort sur
 une condition (une autre sémaphore).
 \medskip
 
-Pour le le dernier thread a avoir stabilisé sa matrice, plutôt que de
-s'endormir lui aussi, il réveille tous les autres en leur demandant
+Le dernier thread à avoir stabilisé sa matrice, plutôt que de
+s'endormir lui aussi, réveille tous les autres en leur demandant
 d'effectuer une dernière itération. Cette itération doit permettre de
 savoir si des nouvelles valeurs ont été placées aux frontières pendant
-qu'on était endormis. Si c'est le cas, on recommence le processus
+qu'on était endormi. Si c'est le cas, on recommence le processus
 depuis le départ. Sinon, l'algorithme se termine.
+\medskip
+
+Il est très important pour cette méthode que le nombre de threads soit
+multiple de $DIM-2$ pour réduire au maximum le nombre de dépendances
+et donc de prises de sémaphores.
 \medskip
 
 Pour éviter les inter-blocages, il faut aussi veiller à ne pas
 s'endormir sur la sémaphore du thread voisin si celui-ci a stabilisé
 son morceau de matrice et qu'il est endormi ou s'apprête à s'endormir.
+
+Nous n'avons pas trouvé de solution convenable pour résoudre ce
+problème. Cette méthode n'a donc pas pu être testée.
 \medskip
+
 
 \subsubsection{Version OpenCL}
 
