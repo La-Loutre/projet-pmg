@@ -164,10 +164,11 @@ sand_t create_sand_array_naive(int size)
 
 sand_t create_sand_array(int size)
 {
-  unsigned *raw_sand_array = malloc(sizeof(unsigned*) * size * size);
+  unsigned *raw_sand_array = calloc( size * size,sizeof(unsigned*) );
   unsigned **two_dim_sand_array = malloc(sizeof(unsigned**) * size);
   for (int i = 0; i < size; ++i)
     two_dim_sand_array[i] = &raw_sand_array[i*size];
+
   return two_dim_sand_array;
 }
 

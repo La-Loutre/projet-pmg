@@ -67,7 +67,7 @@ static inline int compute_eucl_swap (sand_t sand)
     read_from = swap[read];
     write_to = swap[write];
   } while(change);
-
+  //  print_matrix(sand,DIM);
   free(*aux);
   free(aux);
   return change;
@@ -79,12 +79,21 @@ static inline int compute_eucl_chunk (sand_t sand)
   int mod4;
   int div4;
   int chunk_size = 2;
-  int nb_chunk = DIM / chunk_size ;
+  int nb_chunk = (DIM-2) / chunk_size + ((DIM-2)%chunk_size!=0?1:0);
   int chunk[nb_chunk];
+  sand_t aux = create_sand_array(DIM);
+  sand_t swap[2] = {sand, aux};
+  sand_t read_from, write_to;
+  read_from = swap[0];
+  write_to = swap[1];
+  int read = 0;
+  int write = 1;
 
   for (int i=0;i<nb_chunk;++i)
     chunk[i]=1;
   int start=1;
+  do{
+    change = 0;
   for (int chunk_iter = 0; chunk_iter < nb_chunk; ++chunk_iter) {
     if (!chunk[chunk_iter])
       continue;
@@ -93,37 +102,33 @@ static inline int compute_eucl_chunk (sand_t sand)
     for (int y = chunk_iter*chunk_size+start; y < DIM-1 && y < chunk_iter*chunk_size+start+chunk_size; ++y)
       {
 	for (int x = 1; x < DIM-1; ++x){
-#if MAX_HEIGHT != 4
-	  if(sand[y][x] >= MAX_HEIGHT) {
-	    change = 1;
-	    mod4 = sand[y][x] % MAX_HEIGHT;
-	    div4 = sand[y][x] / MAX_HEIGHT;
-	    sand[y][x] = mod4;
-	    sand[y-1][x] += div4;
-	    sand[y+1][x] += div4;
-	    sand[y][x-1] += div4;
-	    sand[y][x+1] += div4;
-	  }
-#else
-	  switch((div4=sand[y][x] >> 2)){
-	  case 0:
-	    continue;
-	  default:
-	    change = 1;
-	    chunk[y/chunk_size] = 1;
-	    chunk[(y-1)/chunk_size] |= div4;
-	    chunk[(y+1)/chunk_size] |= div4;
-	    sand[y][x] &= 3;
-	    sand[y-1][x] += div4;
-	    sand[y+1][x] += div4;
-	    sand[y][x-1] += div4;
-	    sand[y][x+1] += div4;
-	  }
-#endif
+	  int val = read_from[y][x];
+	  // NOTE: works only if MAX_HEIGHT == 4
+	  change = change | (val >> 2);
+	  chunk[chunk_iter] |= change;
+	  if (chunk_iter > 0)
+	    chunk[chunk_iter-1] |=change;
+	  chunk[chunk_iter+1] |=change;
+	  val &= 3;
+	  val += read_from[y-1][x] / 4
+	    + read_from[y+1][x] / 4
+	    + read_from[y][x-1] / 4
+	    + read_from[y][x+1] / 4;
+	  write_to[y][x] = val;
+
 	}
       }
-    start=0;
+
+    //    start=0;
   }
+  read = 1 - read;
+  write = 1 - write;
+  read_from = swap[read];
+  write_to = swap[write];
+  }while(change);
+  free(*aux);
+  free(aux);
+  //  print_matrix(sand,DIM);
   return change;
 }
 
@@ -951,7 +956,7 @@ int main (int argc, char **argv)
 #if METHOD == TEST
   sand_t ref = create_sand_array(DIM);
   unsigned long ref_time = 0;
-  int repeat = 5;
+  int repeat = 1;
 
   // NOTE: We use the previous best compute time for reference
 
@@ -967,10 +972,10 @@ int main (int argc, char **argv)
   			   ref, sand, compute_eucl_swap, ref_time,
   			   true, repeat));
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL CHUNK", */
-  /* 			   ref, sand, compute_eucl_chunk, ref_time, */
-  /* 			   false, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL CHUNK",
+  			   ref, sand, compute_eucl_chunk, ref_time,
+  			   false, repeat));
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL VECTOR", */
@@ -1006,7 +1011,7 @@ int main (int argc, char **argv)
     for (int i = 2; i < 16; i+=2) {
       iterations = i;
       process ("PAR OMP ITER",
-	       ref, sand, compute_omp_iter_v2, ref_time, false, repeat);
+  	       ref, sand, compute_omp_iter_v2, ref_time, false, repeat);
     }
   }
   sand_init(sand);
