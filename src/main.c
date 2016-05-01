@@ -28,8 +28,6 @@ int compute_chunk(int nthreads)
 {
   if ((DIM-2) % nthreads == 0)
     return (DIM-2)/nthreads;
-  else if ((DIM-2) % 4 == 0)
-    return 4;
   else
     return 2;
 }
@@ -249,7 +247,6 @@ static inline int compute_eucl_vector (sand_t sand)
 	nextline_simd = _mm_add_epi32(nextline_simd,
 				      div4_simd);
 
-
 	/*
 	 * For element on same line its different:
 	 * [... , x , x1  , x2   , x3  , ...]
@@ -266,8 +263,6 @@ static inline int compute_eucl_vector (sand_t sand)
 
 	_mm_storeu_si128(&sand[y][x],new_value_simd);
 	_mm_storeu_si128(&TESTT,div4_simd);
-
-
 
 	sand[y][x-1] += TESTT[0];
 	sand[y][x+4] += TESTT[3];
@@ -486,7 +481,6 @@ static inline int compute_omp_tile (sand_t sand)
 
     do {
 
-
 #pragma omp barrier
 #pragma omp single // barrier
       change = 0;
@@ -536,10 +530,6 @@ static inline int compute_omp_swap (sand_t sand)
 
   sand_t swap[2] = {sand, aux};
 
-  /* sem_t *locks = malloc(sizeof(sem_t)*(nthreads-1)); */
-  /* for (int i = 0; i < nthreads-1; i++) */
-  /*   assert(sem_init(&locks[i], 0, 0) ==0); */
-
 #pragma omp parallel shared(change)
   {
     sand_t read_from, write_to;
@@ -559,29 +549,8 @@ static inline int compute_omp_swap (sand_t sand)
 
 #pragma omp for schedule(static, chunk) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
-	/*// FIND WHERE WE SHOULD USE SEMAPHORE
-	//int chunk_number = (y-1) / chunk;
-	// if nthreads is not a multiple of DIM
-	// NOTE: two incrorrect branch predictions at maximum
-
-	if (chunk_number >= nthreads)
-	chunk_number = nthreads -1;
-	int first = chunk_number * chunk + 1;
-	int last;
-	if (chunk_number == nthreads-1)
-	last = DIM-2;
-	else
-	last = first + chunk-1;*/
-
-	/*// WAIT
-	// NOTE: two incorrect branch predictions at maximum
-	if (y == last && last != DIM-2) {
-	assert(sem_wait(&locks[chunk_number]) == 0);
-	}*/
-
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = read_from[y][x];
-	  // UPDATE
 	  // NOTE: works only if MAX_HEIGHT == 4
 	  change = change | (val >> 2);
 	  val &= 3 ;
@@ -591,15 +560,6 @@ static inline int compute_omp_swap (sand_t sand)
 	    + read_from[y][x+1] / 4;
 	  write_to[y][x] = val;
 	}
-
-	/*// POST
-	// NOTE: two incorrect branch predictions at maximum
-	if (y == first && first != 1) {
-	assert(nthreads-1 > chunk_number-1);
-	assert(chunk_number >= 0);
-	assert (sem_post(&locks[chunk_number-1]) == 0);
-	}*/
-
       } // END PARALLEL FOR
       read = 1 - read;
       write = 1 - write;
@@ -625,8 +585,6 @@ static inline int compute_omp_swap_tile (sand_t sand)
   int ntile = (DIM-2)/tile +  ((DIM-2) % tile == 0 ? 0 : 1);
   // We will read the edges, so they should be set to 0
   memset(*aux, 0, DIM*DIM*sizeof(unsigned));
-
-  //   fprintf(stderr, "tile %d, ntile %d, chunk %d, nchunk %d\n", tile, ntile, chunk, nchunk);
 
   sand_t swap[2] = {sand, aux};
 
@@ -672,7 +630,6 @@ static inline int compute_omp_swap_tile (sand_t sand)
   } // END PARALLEL
   free(*aux);
   free(aux);
-  //print_matrix(sand,DIM);
   return change;
 }
 
@@ -810,7 +767,7 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
 int main (int argc, char **argv)
 {
-  omp_set_nested(1);
+  // omp_set_nested(1);
   //   omp_set_num_threads(4);
 
   printf("BINDING %d ", omp_get_proc_bind());
@@ -862,56 +819,56 @@ int main (int argc, char **argv)
   ref_time = process("SEQ REF",
   		     ref, ref, compute_naive, ref_time, true, repeat);
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL", */
-  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL",
+  			   ref, sand, compute_eucl, ref_time, true, repeat));
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL SWAP", */
-  /* 			   ref, sand, compute_eucl_swap, ref_time, */
-  /* 			   true, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL SWAP",
+  			   ref, sand, compute_eucl_swap, ref_time,
+  			   true, repeat));
 
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL CHUNK", */
-  /* 			   ref, sand, compute_eucl_chunk, ref_time, */
-  /* 			   false, repeat)); */
-  /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL VECTOR", */
-  /* 			   ref, sand, compute_eucl_vector, ref_time, */
-  /* 			   false, repeat)); */
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL CHUNK",
+  			   ref, sand, compute_eucl_chunk, ref_time,
+  			   false, repeat));
+  ref_time = fmin(ref_time,
+  		  process ("SEQ EUCL VECTOR",
+  			   ref, sand, compute_eucl_vector, ref_time,
+  			   false, repeat));
 
   // NOTE: We use best sequential time for reference
 
-  /* int max = omp_get_max_threads(); */
-  /* for (int i = 1; i <= max; i++) { */
-  /* omp_set_num_threads(i); */
+  int max = omp_get_max_threads();
+  for (int i = 1; i <= max; i++) {
+    omp_set_num_threads(i);
 
     printf("NTHREADS %d\n", omp_get_max_threads());
 
-    /* process ("PAR OMP", */
-    /* 	     ref, sand, compute_omp, ref_time, false, repeat); */
+    process ("PAR OMP",
+    	     ref, sand, compute_omp, ref_time, false, repeat);
 
-    /* process ("PAR OMP TILE", */
-    /* 	     ref, sand, compute_omp_tile, ref_time, false, repeat); */
+    process ("PAR OMP TILE",
+    	     ref, sand, compute_omp_tile, ref_time, false, repeat);
 
     process ("PAR OMP SWAP",
   	     ref, sand, compute_omp_swap, ref_time, false, repeat);
 
-    /* process ("PAR OMP SWAP TILE", */
-    /* 	    ref, sand, compute_omp_swap_tile, ref_time, false, repeat); */
+    process ("PAR OMP SWAP TILE",
+	     ref, sand, compute_omp_swap_tile, ref_time, false, repeat);
 
 
-    /* process ("PAR OMP SWAP NOWAIT", */
-    /* 	    ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+    process ("PAR OMP SWAP NOWAIT",
+	     ref, sand, compute_omp_swap_nowait, ref_time, false, repeat);
 
-    /* process ("PAR OMP ITER", */
-    /* 	     ref, sand, compute_omp_iter, ref_time, false, repeat); */
+    process ("PAR OMP ITER",
+    	     ref, sand, compute_omp_iter, ref_time, false, repeat);
 
-  /* } */
+  }
 
   fprintf(stderr,"\n");
   sand_init(sand);
-  start(ref, sand, ref_time, true, true);
+  start(ref, sand, ref_time, false, true);
 
   puts("\n");
   return 0;
