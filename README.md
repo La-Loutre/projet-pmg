@@ -14,7 +14,7 @@ où :
 
 i représente la méthode utilisée et peut être 1 pour la version
 	séquentielle de référence, 2 pour la version séquentielle
-	euclienne optimisée, 3 pour la version parallèle;
+	euclienne optimisée, 3 pour la version parallèle omp;
 
 j représente comment sont initialiser les cases et peut être 1 pour
 	l'initialisation homogène des matrices et 2 pour l'initialisation

@@ -715,7 +715,6 @@ static inline int compute_omp_swap (sand_t sand)
   } // END PARALLEL
   free(*aux);
   free(aux);
-  /* free(locks); */
   return change;
 }
 
@@ -780,6 +779,7 @@ static inline int compute_omp_swap_tile (sand_t sand)
 
 static inline int compute_omp_swap_nowait (sand_t sand)
 {
+  // XXX: not finished and incorrect
 
   int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
@@ -930,12 +930,23 @@ int main (int argc, char **argv)
 		MAX_HEIGHT,
 		get,
 		iterate,
-		compute_eucl,
+		compute_naive,
 		sand);
   return 0;
-#endif // METHOD SEQ EUCL
+#endif // METHOD SEQ REF
 
 #if METHOD == PAROMP
+  display_init (argc, argv,
+		DIM,
+		MAX_HEIGHT,
+		get,
+		iterate,
+		compute_eucl_swap,
+		sand);
+  return 0;
+#endif // METHOD SEQ EUCL SWAP
+
+#if METHOD == PAROMPSEM
   display_init (argc, argv,
 		DIM,
 		MAX_HEIGHT,
@@ -944,18 +955,7 @@ int main (int argc, char **argv)
 		compute_omp_swap,
 		sand);
   return 0;
-#endif // METHOD PAR OMP
-
-#if METHOD == PAROMPSEM
-  display_init (argc, argv,
-		DIM,
-		MAX_HEIGHT,
-		get,
-		iterate,
-		compute_omp_swap_tile,
-		sand);
-  return 0;
-#endif // METHOD PAR OMP SEM
+#endif // METHOD PAR OMP SWAP
 
 #if METHOD == TEST
   sand_t ref = create_sand_array(DIM);
@@ -976,10 +976,10 @@ int main (int argc, char **argv)
   			   ref, sand, compute_eucl_swap, ref_time,
   			   true, repeat));
 
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL CHUNK",
-  			   ref, sand, compute_eucl_chunk, ref_time,
-  			   false, repeat));
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL CHUNK", */
+  /* 			   ref, sand, compute_eucl_chunk, ref_time, */
+  /* 			   false, repeat)); */
 
   /* ref_time = fmin(ref_time, */
   /* 		  process ("SEQ EUCL VECTOR", */
@@ -1009,16 +1009,14 @@ int main (int argc, char **argv)
     /* process ("PAR OMP SWAP NOWAIT", */
     /* 	     ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-    /* process ("PAR OMP SWAP NOWAIT", */
-    /* 	     ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
+    /* iterations = 8; */
+    /* process ("PAR OMP ITER", */
+    /* 	     ref, sand, compute_omp_iter_v2, ref_time, false, repeat); */
 
-    for (int i = 2; i < 16; i+=2) {
-      iterations = i;
-      process ("PAR OMP ITER",
-  	       ref, sand, compute_omp_iter_v2, ref_time, false, repeat);
-    }
   }
+
   sand_init(sand);
+  // OPENCL GPU
   start(ref, sand, ref_time, false, true);
   puts("\n");
   return 0;
