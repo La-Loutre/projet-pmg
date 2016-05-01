@@ -21,7 +21,7 @@ __kernel void sandpiles(__global unsigned *read,
    * x,y real value from 2 dim array
    *
    */
-   int x_real = x_group*TILE+lx;
+  int x_real = x_group*TILE+lx;
   int y_real = y_group*TILE+ly;
   /*
    * Pos from x,y real value 1 dim array

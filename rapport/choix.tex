@@ -1,13 +1,14 @@
 \section {Choix effectués}
 
-\subsubsection{Algorithme de référence}
+\subsection{Algorithme de référence}
 
 Un premier algorithme naïf a été écrit. Il s'agit d'une simple double
 boucles qui, pour chaque case, fait écrouler le tas de sable sur les
 quatres cases voisines.  Nous utilisons cette algorithme comme
 référence pour vérifier que les algorithmes optimisés ou parallèles
 donnent des résultats corrects. Il s'agit de la méthode
-\texttt{compute\_naive} (algorithme~).
+\texttt{compute\_naive} (algorithme~\ref{algo:naif}).
+\medskip
 
 % TODO: comment cest alloc memoire
 
@@ -52,6 +53,7 @@ cette approche, à chaque itération et pour chaque case, on effectue 5
 accès lecture et un accès écriture contre 5 accès lecture et écriture
 pour l'autre approche. Il s'agit de la méthode
 \texttt{compute\_eucl\_swap} (algorithme~TODO).
+\medskip
 
 L'incovenient de cette approche est qu'on ne peut pas lire et écrire
 dans la même matrice sinon les résultats seraient faux. Ainsi, on
@@ -59,14 +61,18 @@ dispose d'une matrice d'écriture et d'une matrice de lecture. Pendant
 qu'on lit la matrice de lecture, on écrit sur une matrice
 auxiliaire. Ensuite, après une itération, on échange la matrice de
 lecture et d'écriture.
+\medskip
 
 Nous pouvons avec cette méthode facilement effectuer le même
 traitement qu'il faille ébouler une case ou non.
 \bigskip
+\medskip
 
 Nous avons essayé d'autres approches comme la détection des zones
-stables, \texttt{compute\_eucl\_chunk}, ou l'utilisation d'opérations vectorielles pour tenter de
-traiter plusieurs cases d'un seul coup, \texttt{compute\_eucl\_vector}.
+stables, \texttt{compute\_\-eucl\_\-chunk}, ou l'utilisation
+d'opérations vectorielles pour tenter de traiter plusieurs cases d'un
+seul coup, \texttt{compute\_\-eucl\_\-vector}.
+\medskip
 
 \subsection{Algorithmes multi-threads}
 
@@ -80,6 +86,7 @@ $(DIM-2)/nthreads$ lignes successives. Comme pour
 \texttt{compute\_eucl\_swap}, lorsqu'on parcourt une case, on ne
 modifie pas les cases voisines. Cela permet de ne pas modifier les
 parties de la matrices gérées par d'autres threads.
+\medskip
 
 Chaque thread travaille donc sur une matrice privée de taille
 $DIM*DIM$ dans la pile. Une première itération de l'algorithme est
@@ -116,6 +123,7 @@ Une autre approche a été tentée, avec l'objectif d'utiliser des
 barrières le moins souvent possible. Il s'agit de la méthode
 \texttt{compute\_omp\_swap\_nowait} (algorithme~). Cette méthode prend
 le pari de les threads vont évoluer à la même vitesse.
+\medskip
 
 Ainsi, chaque thread tente de stabiliser la région qui lui est
 assignée sans communication avec les autres threads. Il est important
@@ -123,7 +131,20 @@ de rappeler comment est réparti le travail. Chaque thread s'occupe de
 $(DIM-2)/nthreads$ lignes successives de la matrice. Pour garder des
 résultats corrects, il faut insérer des dépendances sur les lignes
 frontières de deux threads. Ces dépendances sont illustrées sur la
-figure~TODO.
+figure~\ref{fig:nowait}.
+\medskip
+
+\begin{figure}[!ht]
+  \center{
+    \includegraphics[width=10cm]{images/nowait.png}
+  }
+  \caption{Utilisation de sémaphore pour retirer les barrières de
+    synchronisation à chaque étape. L'exemple montre 3 threads qui
+    effectuent 4 itérations de l'algortihme. Chaque thread traite
+    $chunk$ lignes de la matrice. Après chaque itération, on échange
+    la matrice de lecture et d'écriture.}
+  \label{fig:nowait}
+\end{figure}
 
 Pour implémenter ces dépendances, nous utilisons un tableau de
 sémaphores de taille $nthreads-1$ et initialisées à 0. Chaque thread
@@ -132,9 +153,11 @@ thread $t+1$ avant d'écrire la dernière ligne qui lui est attribuée,
 la ligne frontière entre deux threads. De son côté, le thread $t+1$
 incrémente la sémaphore lorsqu'il a terminé de traiter la première
 ligne qui lui est attribuée.
+\medskip
 
 On espère en pratique que les threads travaillent à la même vitesse
 et que la sémaphore contient toujours la valeur 1.
+\medskip
 
 Lorsqu'un thread a stabilisé sa partie de la matrice, cela ne veut pas
 dire qu'elle va rester stable, jusqu'à la fin. Les éboulement peuvent
@@ -142,6 +165,7 @@ ne pas encore être parvenu à ses frontières comme cela peut être le
 cas lorsqu'on initialise tous les cases à 0 sauf celle du milieu où on
 place 100000. Ainsi, chaque thread ayant stabilisé sa matrice s'endort sur
 une condition (une autre sémaphore).
+\medskip
 
 Pour le le dernier thread a avoir stabilisé sa matrice, plutôt que de
 s'endormir lui aussi, il réveille tous les autres en leur demandant
@@ -149,5 +173,11 @@ d'effectuer une dernière itération. Cette itération doit permettre de
 savoir si des nouvelles valeurs ont été placées aux frontières pendant
 qu'on était endormis. Si c'est le cas, on recommence le processus
 depuis le départ. Sinon, l'algorithme se termine.
+\medskip
+
+Pour éviter les interblocages, il faut aussi veiller à ne pas
+s'endormir sur la sémaphore du thread voisin si celui-ci a stabilisé
+son morceau de matrice et qu'il est endormi ou s'apprête à s'endormir.
+\medskip
 
 \subsubsection{Version OpenCL}
