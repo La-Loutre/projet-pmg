@@ -75,6 +75,7 @@ static void check_output_data(char *name,
 	     cpt++;
 	}
       }
+
       // printf("\n");
     }
     //printf("REF\n%d",reff[5][0]);
