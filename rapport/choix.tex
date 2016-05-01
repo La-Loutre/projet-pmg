@@ -7,7 +7,7 @@ boucles qui, pour chaque case, fait écrouler le tas de sable sur les
 quatre cases voisines.  Nous utilisons cette algorithme comme
 référence pour vérifier que les algorithmes optimisés ou parallèles
 donnent des résultats corrects. Il s'agit de la méthode
-\texttt{compute\_naïve} (algorithme~\ref{algo:naif}).
+\texttt{compute\_naïve}.
 \medskip
 
 \subsection{Optimiser l'utilisation du cache}
@@ -33,7 +33,7 @@ cases voisines. L'avantage est que si un case contient un grand nombre
 de grains de sable, on va pouvoir la vider en une
 opération. Seulement, à l'itération suivante, un huitième des grains
 de sable envoyés chez les voisins reviennent sur la case de départ.
-Il s'agit de la méthode \texttt{compute\_eucl} (algorithme~).
+Il s'agit de la méthode \texttt{compute\_eucl}.
 \medskip
 
 \subsubsection{Prédiction de branchement}
@@ -62,7 +62,7 @@ sur la case, mais sans modifier le contenu des cases voisines. Avec
 cette approche, à chaque itération et pour chaque case, on effectue 5
 accès lecture et un accès écriture contre 5 accès lecture et écriture
 pour l'autre approche. Il s'agit de la méthode
-\texttt{compute\_eucl\_swap} (algorithme~TODO).
+\texttt{compute\_eucl\_swap}.
 \medskip
 
 L'inconvénient de cette approche est qu'on ne peut pas lire et écrire
@@ -165,14 +165,14 @@ Chaque thread effectue une itération en lisant dans une matrice et en
 
 Il est nécessaire de synchroniser les threads à chaque itération pour
 être certain que tout le monde s'arrête lorsque toute la matrice est
-stabilisée. Il s'agit de la méthode \texttt{compute\_omp\_swap} (algorithme~).
+stabilisée. Il s'agit de la méthode \texttt{compute\_omp\_swap}.
 \medskip
 
 \subsubsection{Limiter au maximum les synchronisations}
 
 Une autre approche a été tentée, avec l'objectif d'utiliser des
 barrières le moins souvent possible. Il s'agit de la méthode
-\texttt{compute\_omp\_swap\_nowait} (algorithme~). Cette méthode prend
+\texttt{compute\_omp\_swap\_nowait}. Cette méthode prend
 le pari de les threads vont évoluer à la même vitesse.
 \medskip
 
@@ -183,6 +183,16 @@ $(DIM-2)/nthreads$ lignes successives de la matrice. Pour garder des
 résultats corrects, il faut insérer des dépendances sur les lignes
 frontières de deux threads. Ces dépendances sont illustrées sur la
 figure~\ref{fig:nowait}.
+\medskip
+
+Pour chaque itération, le traitement de la première ligne d'un morceau
+de la matrice dépend de la terminaison du traitement de la dernière
+ligne de l'itération précédente du thread qui s'occupe du morceau
+précédent (dépendances ``avants''). De plus, le traitement de la
+dernière ligne d'un morceau de matrice dépend de la terminaison du
+traitement de la première ligne de l'itération précédente du thread
+qui s'occupe du morceau suivant de la matrice (dépendances
+``arrières'').
 \medskip
 
 \begin{figure}[!ht]

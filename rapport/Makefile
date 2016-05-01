@@ -1,7 +1,7 @@
 all: doc
 
 doc:
-	pdflatex main.tex pdflatex main.tex
+	pdflatex main.tex ; pdflatex main.tex
 
 clean:
 	find . -type f \( -name "*~" -or -name "#*#" \

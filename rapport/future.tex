@@ -1,0 +1,32 @@
+\section{Perspectives}
+
+\subsection{Réduction du champ de recherche}
+
+Pour réduire le temps que prend une itération, nous pouvons essayer de
+détecter le plus petit rectangle de la matrice qui contient toutes les
+cases instables.
+
+Il faut donc garder 4 entiers pour garder en mémoire la colonne
+minimal et maximal ainsi que la ligne minimal et maximal entre
+lesquelles se trouvent l'intégralité des cases instables.
+
+Cette méthode devrait permettre de réduire le temps d'exécution du
+programme pour le cas de la tour de sable.
+
+En revanche, cela n'apporte rien en terme de parallélisation.
+
+\subsection{Suppression des barrières}
+
+Notre méthode \texttt{compute\_omp\_swap\_nowait} n'a pas pu être
+terminée à temps. Il aurait été intéressant de vérifier dans la
+pratique si prendre le pari que les threads travaillent à la même
+vitesse (à une itération près) est gagnant ou pas.
+
+En effet, on ne perd presque pas de temps à appeler la fonction
+\texttt{sem\_wait()} lorsque la sémaphore contient la valeur 1, et
+chaque thread effectue cette vérification que une ou deux fois par
+itération.
+
+En revanche, il se peut que la probabilité que la sémaphore contienne
+0 à l'instant où un thread souhaite traiter une frontière soit
+suffisamment trop élevée pour que cette méthode soit intéressante (à cause des dépendances ``arrières'').
