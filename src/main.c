@@ -381,7 +381,7 @@ static inline int compute_omp (sand_t sand)
 }
 
 static int iterations = 10;
-static inline int compute_omp_iter_v2 (sand_t sand)
+static inline int compute_omp_iter (sand_t sand)
 {
   int iter_target = iterations;
   int change = 0;
@@ -511,96 +511,6 @@ static inline int compute_omp_iter_v2 (sand_t sand)
   }
 
 }
-static inline int compute_omp_iter (sand_t sand)
-{
-  int iter = 1;
-  int sup = iter-1;
-  int change = 0;
-
-#pragma omp parallel
-  {
-    int nthreads = omp_get_num_threads();
-    int myid = omp_get_thread_num();
-    int mysup = sup;
-    int mychange = 0;
-
-    int chunk = compute_chunk(nthreads);
-
-    unsigned mysand [DIM][DIM];
-
-    do {
-
-#pragma omp barrier
-#pragma omp single // barrier
-      change = 0;
-
-
-      // FRONTIER INF
-      int inf_frontier = myid*chunk+1;
-      for (int y = inf_frontier-sup; y < inf_frontier && y > 1; y++) {
-	assert(false);
-	for (int x = 1; x < DIM-1; x++) {
-	  int val = sand[y][x];
-	  val &= 3;
-	  val += sand[y-1][x] / 4
-	    + sand[y+1][x] / 4
-	    + sand[y][x-1] / 4
-	    + sand[y][x+1] / 4;
-	  mysand[y][x] = val;
-	}
-      }
-
-      // ITERATIONS
-      for (int it = 0; it < iter; it++) {
-#pragma omp for schedule(static, chunk)
-	for (int y = 1; y < DIM-1; y++) {
-	  for (int x = 1; x < DIM-1; x++) {
-	    int val = sand[y][x];
-	    // NOTE: works only if MAX_HEIGHT == 4
-	    mychange = mychange | (val >> 2);
-	    val &= 3;
-	    val += sand[y-1][x] / 4
-	      + sand[y+1][x] / 4
-	      + sand[y][x-1] / 4
-	      + sand[y][x+1] / 4;
-	    mysand[y][x] = val;
-	  }
-	} // END PARALLEL FOR
-
-	// FRONTIER SUP
-	int sup_frontier = myid*chunk+chunk+1;
-	for (int y = sup_frontier; y < sup_frontier+sup && y < DIM-1; y++) {
-	  assert(false);
-	  for (int x = 1; x < DIM-1; x++) {
-	    int val = sand[y][x];
-	    val &= 3;
-	    val += sand[y-1][x] / 4
-	      + sand[y+1][x] / 4
-	      + sand[y][x-1] / 4
-	      + sand[y][x+1] / 4;
-	    mysand[y][x] = val;
-	  }
-	}
-	--mysup;
-      } // END ITERATIONS
-
-#pragma omp atomic update
-      change |= mychange;
-#pragma omp barrier
-      // SYNCHRONISATION
-      if (change) {
-#pragma omp for schedule(static, chunk)
-	for (int y = 1+sup; y < DIM-1; y++) {
-	  for (int x = 1+sup; x < DIM-1; x++) {
-	    sand[y][x] = mysand[y][x];
-	  }
-	} // END PARALLEL FOR
-      }
-    } while(change);
-  } // END PARALLEL
-  return change;
-}
-
 
 static inline int compute_omp_tile (sand_t sand)
 {
@@ -1004,7 +914,7 @@ int main (int argc, char **argv)
 
     /* iterations = 8; */
     /* process ("PAR OMP ITER", */
-    /* 	     ref, sand, compute_omp_iter_v2, ref_time, false, repeat); */
+    /* 	     ref, sand, compute_omp_iter, ref_time, false, repeat); */
 
   }
 
