@@ -92,11 +92,28 @@ partagée, nécessaire après chaque itération.
 
 Les pics de speed-up correspondent aux exécutions avec un nombres de
 threads multiples du nombres de lignes à traiter ($DIM-2$). Nous
-pouvons voir l'intérêt de décourer la matrice en morceaux égaux entre
+pouvons voir l'intérêt de découper la matrice en morceaux égaux pour
 tous les threads.
 \medskip
 
-Sur les figures~\ref{fig:homopar512} et~\ref{fig:tourpar512} blabla
+Sur les figures~\ref{fig:homopar512} et~\ref{fig:tourpar512} nous
+pouvons voir que pour une matrice de dimension 512 par 512, le speed-up
+maximal de 8 est atteint pour un nombre de threads égal à 10. Ce
+chiffre est rassurant car c'est le nombre maximal de coeur physiques qu'on peut
+soliciter de la machine \texttt{worf} tout en ayant réparti le travail
+équitablement en morceaux de matrice.
+\medskip
+
+Pour la matrice de taille 128, le speed-up maximal de 3 est atteint
+pour une exécution avec 6 threads. Nous pouvons nous demander pourquoi
+9 threads ne représente pas le nombre de threads idéal, car dans ce
+cas nous solicitons plus de coeurs physiques tout en répartissant
+mieux les lignes de la matrices. Le problème est que pour une telle
+taille de matrice, l'exécution de l'algorithme est très courte~:
+quelques dizaines de millisecondes. Ainsi, avec un nombre de threads
+trop important, le programme passe plus de temps à synchroniser tous
+ces threads qu'à calculer.
+\medskip
 
 \begin{figure}[!ht]
   \center{
@@ -127,5 +144,5 @@ Sur les figures~\ref{fig:homopar512} et~\ref{fig:tourpar512} blabla
     \includegraphics[width=10cm]{images/tourpar512.png}
   }
   \caption{}
-  \label{fig:tourpar128}
+  \label{fig:tourpar512}
 \end{figure}
