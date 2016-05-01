@@ -19,10 +19,34 @@ la salle 203 décrite ci-après~:
 On pourra retrouver la sortie de la commande \texttt{lstopo} en
 annexes (figure~\ref{fig:lstopo}).
 
-\subsection{Algorithmes séquentiels}
+\subsection{Comparaison des algorithmes séquentiels}
 
+\subsubsection{Calcul naïf \textit{versus} division euclidienne}
 
+La version qui utilise des divisions euclidiennes
+\textttt{compute\_eucl} est 1,1 fois plus lente que la version naïve
+\texttt{compute\_naive} pour les configurations homogènes. Cela parait
+normal car les valeurs dans les cases ne dépassent pas 5 à
+l'initialisation. Ainsi, l'utilité de faire une division euclidienne
+est limité.
+
+En revanche, pour le cas où on place un tas de 100000 grains au
+centre, la version avec division euclidienne est 7 à 8 fois plus
+rapide car on réduit le nombre d'itération nécessaire pour arriver à
+stabilisation.
+
+\subsubsection{Suppression des mauvaises prédictions de branchement}
+\label{sec:predict}
+
+La suppression de la condition qui vérifie si la valeur d'une case est
+supérieure à la taille maximale d'un tas de sable améliore les
+performances d'un facteur 3 environ pour la fonction
+\texttt{compute\_eucl\_swap} et \texttt{compute\_omp\_swap}.
+
+\subsubsection{Éboulement \textit{versus} Rassemblement}
+
+Grâce à l'optimisation de la section~\ref{sec:predict}, notre solution
+pour limiter les accès en écriture sur les cases voisines est jusqu'à
+2,5 fois plus rapide que les autres méthodes séquentielles.
 
 \subsection{Algorithmes multi-threads}
-
-\subsection{Accélération}

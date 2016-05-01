@@ -20,7 +20,8 @@ pointe sur une ligne différente (de taille $DIM$) du premier tableau.
 Dans le cache L1 (32 KB), on peut faire rentrer
 $32*1024/sizeof(unsigned)/DIM$ lignes de la matrice soit 64 lignes
 pour la matrice de dimension 128 et 16 lignes pour celle de dimension
-512. Il est donc naturel de parcourir la matrice ligne par ligne.
+512. Il est donc naturel de parcourir la matrice ligne par ligne
+plutôt que via des tuile de 16 par 16 par exemple.
 
 \subsection{Algorithmes séquentiels}
 
@@ -50,8 +51,6 @@ efficace ici.
 Il faut alors effectuer toujours les mêmes opérations, qu'il y ait
 un changement ou non.
 \medskip
-
-% 5 à 7 fois plus vite en seq, 2 fois plus vite en para
 
 \subsubsection{Diminuer les accès en écriture}
 
