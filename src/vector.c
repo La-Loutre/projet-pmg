@@ -161,7 +161,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
   err = clGetPlatformIDs(3, pf, &nb_platforms);
   check(err, "Failed to get platform IDs");
 
-  printf("%d OpenCL platforms detected\n", nb_platforms);
+  //printf("%d OpenCL platforms detected\n", nb_platforms);
 
   // For each platform do
   for (cl_int p = 0; p < nb_platforms; p++) {
@@ -180,11 +180,11 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
     err = clGetPlatformInfo(pf[p], CL_PLATFORM_VENDOR, 1024, vendor, NULL);
     check(err, "Failed to get Platform Info");
 
-    printf("Platform %d: %s - %s\n", p, name, vendor);
+    //printf("Platform %d: %s - %s\n", p, name, vendor);
 
     // Get list of devices
     err = clGetDeviceIDs(pf[p], device_type, MAX_DEVICES, devices, &nb_devices);
-    printf("nb devices = %d\n", nb_devices);
+    //printf("nb devices = %d\n", nb_devices);
 
     if(nb_devices == 0)
       continue;
@@ -247,7 +247,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       err = clGetDeviceInfo(devices[dev], CL_DEVICE_TYPE, sizeof(cl_device_type), &dtype, NULL);
       check(err, "Cannot get type of device");
 
-      printf("\tDevice %d : %s [%s]\n", dev, (dtype == CL_DEVICE_TYPE_GPU) ? "GPU" : "CPU", name);
+      //printf("\tDevice %d : %s [%s]\n", dev, (dtype == CL_DEVICE_TYPE_GPU) ? "GPU" : "CPU", name);
 
       // Create a command queue
       queue = clCreateCommandQueue(context, devices[dev], CL_QUEUE_PROFILING_ENABLE, &err);
@@ -269,7 +269,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	// local domain size for our calculation
 	size_t local[2]  = { TILE , TILE};
 
-	printf("\t%dx%d Threads in workgroups of %dx%d\n", global[0],global[1], local[0],local[1]);
+	//printf("\t%dx%d Threads in workgroups of %dx%d\n", global[0],global[1], local[0],local[1]);
 
 	// Set kernel arguments
 	err = 0;
