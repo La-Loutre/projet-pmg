@@ -98,13 +98,13 @@ ligne par ligne est la façon qui permet d'utiliser au mieux le cache.4
 
 Pour la plupart de nos solutions multi-threads, nous répartissons le
 traitement de chaque ligne de la matrice sur un ensemble de
-threads. Un thread se voit donc attribuer $chunk=(DIM-2)/nthreads$
+threads. Un thread se voit donc attribuer $chunk=\-(DIM-2)/nthreads$
 lignes successives et ceux de manière statique
-(\texttt{schedule(static, chunk)}). Dans les cas où le nombre de
+(\texttt{schedule(static, \-chunk)}). Dans les cas où le nombre de
 lignes à traiter par itération n'est pas multiple de $nthreads$, on
 peut noter que ce nombre est au moins multiple de 2, chaque thread
 traite donc successivement 2 lignes (\texttt{schedule(static,
-  chunk)}).
+  \-chunk)}).
 
 Les autres politiques d'ordonnacement des threads ne sont pas
 intéressantes ici car les threads font en théorie tous la même
@@ -239,7 +239,6 @@ s'endormir sur la sémaphore du thread voisin si celui-ci a stabilisé
 son morceau de matrice et qu'il est endormi ou s'apprête à s'endormir.
 \medskip
 
-\subsubsection{Version OpenCL}
+\subsection{Version OpenCL}
 
-%%  LocalWords:  TODO chunk vector d'OpenMP omp nthreads p-itération
-%%  LocalWords:  nowait OpenCL
+% TODO:
