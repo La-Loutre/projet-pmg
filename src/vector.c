@@ -34,7 +34,6 @@ static void alloc_buffers_and_user_data(cl_context context)
 {
   // CPU side
   input_data = &sand[0][0];
-  //  print_matrix(sand,DIM);
   output_data = malloc(SIZE * SIZE * sizeof(unsigned));
   changed_data = malloc(sizeof(unsigned));
   *changed_data = 0;
@@ -246,7 +245,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 
       // Write our data set into device buffer
       send_input(queue);
-      int xxx=0;
+      int swap=0;
       struct timeval t1,t2;
       	double time;
       // Execute kernel
@@ -273,8 +272,8 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	gettimeofday (&t1, NULL);
 	int iter = 1;
 	do{
-	  err  = clSetKernelArg(kernel, xxx, sizeof(cl_mem), &input_buffer);
-	  err |= clSetKernelArg(kernel, (xxx+1)%2, sizeof(cl_mem), &output_buffer);
+	  err  = clSetKernelArg(kernel, swap, sizeof(cl_mem), &input_buffer);
+	  err |= clSetKernelArg(kernel, (swap+1)%2, sizeof(cl_mem), &output_buffer);
 	  send_reset_changed(queue);
 	err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global, local,
 				     0, NULL, &prof_event);
@@ -284,10 +283,9 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	check(err, "Failed to execute kernel");
 	// Wait for the command commands to get serviced before reading back results
 	clFinish(queue);
-	xxx= (xxx+1)%2;
+	swap= (swap+1)%2;
 
-	//	iter +=1;
-	}while(!(is_done(queue)) );// && --iter > -4);
+	}while(!(is_done(queue)) );
 
 
 
@@ -297,7 +295,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       }
 
       // Read back the results from the device to verify the output
-      retrieve_output(queue,xxx);
+      retrieve_output(queue,swap);
 
       gettimeofday (&t2,NULL);
       // Check performance
