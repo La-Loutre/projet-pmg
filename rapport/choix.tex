@@ -216,9 +216,9 @@ et que la sémaphore contient toujours la valeur 1.
 Lorsqu'un thread a stabilisé sa partie de la matrice, cela ne veut pas
 dire qu'elle va rester stable, jusqu'à la fin. Les éboulement peuvent
 ne pas encore être parvenu à ses frontières comme cela peut être le
-cas lorsqu'on initialise tous les cases à 0 sauf celle du milieu où on
-place 100000. Ainsi, chaque thread ayant stabilisé sa matrice s'endort sur
-une condition (une autre sémaphore).
+cas lorsqu'on initialise une seule case à 100000. Ainsi, chaque thread
+ayant stabilisé sa matrice s'endort sur une condition (une autre
+sémaphore).
 \medskip
 
 Le dernier thread à avoir stabilisé sa matrice, plutôt que de
