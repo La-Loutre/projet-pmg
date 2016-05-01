@@ -15,11 +15,10 @@ __kernel void sandpiles(__global unsigned *read,
   int ly = get_local_id(1);
 
 
-  int k = DIM/TILE; //Integer (16)
+  int k = DIM/TILE; // Integer (16)
 
   /*
    * x,y real value from 2 dim array
-   *
    */
   int x_real = x_group*TILE+lx;
   int y_real = y_group*TILE+ly;
@@ -62,21 +61,14 @@ __kernel void sandpiles(__global unsigned *read,
 	  + work_tab[ly-1+1][lx+1]/ 4
 	  + work_tab[ly+1][lx+1+1]/ 4
 	  + work_tab[ly+1][lx-1+1]/ 4;
-	//barrier(CLK_LOCAL_MEM_FENCE);
 
 	if (change)
 	  *changed = 1;
-
-	//work_tab[ly+1][lx+1] = val;
-
-	//	barrier(CLK_LOCAL_MEM_FENCE);
       }
       write[pos] = val;
 
-     }
-  else{
+    }
+  else {
     write[pos] = 0;
   }
-
-
 }
