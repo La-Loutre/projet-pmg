@@ -103,18 +103,22 @@ static inline int compute_eucl_chunk (sand_t sand)
       {
 	for (int x = 1; x < DIM-1; ++x){
 	  int val = read_from[y][x];
+	  int save_val = val;
 	  // NOTE: works only if MAX_HEIGHT == 4
-	  change = change | (val >> 2);
-	  chunk[chunk_iter] |= change;
-	  if (chunk_iter > 0)
-	    chunk[chunk_iter-1] |=change;
-	  chunk[chunk_iter+1] |=change;
+	  int localchange = val/4;
+	  change = change | localchange;
 	  val &= 3;
 	  val += read_from[y-1][x] / 4
 	    + read_from[y+1][x] / 4
 	    + read_from[y][x-1] / 4
 	    + read_from[y][x+1] / 4;
 	  write_to[y][x] = val;
+
+	  chunk[chunk_iter] |= localchange;
+	  if (chunk_iter > 0 )
+	    chunk[chunk_iter-1] |= (save_val != val);
+	  if (chunk_iter  < nb_chunk-1)
+	    chunk[chunk_iter+1] |= (save_val != val);
 
 	}
       }
@@ -982,7 +986,7 @@ int main (int argc, char **argv)
   /* 			   ref, sand, compute_eucl_vector, ref_time, */
   /* 			   false, repeat)); */
 
-  // NOTE: We use best sequential time for reference
+  //  NOTE: We use best sequential time for reference
 
   int max = omp_get_max_threads();
   for (int i = 1; i <= max; i++) {
