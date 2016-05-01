@@ -1,5 +1,24 @@
 \section {Résultats obtenus}
 
+Tous les tests ont été réalisés sur la machine hôte \texttt{worf} de
+la salle 203 décrite ci-après~:
+\begin{itemize}
+\item NVIDIA GF100GL Quadro 4000
+\item Intel Xeon E7 v2/Xeon E5 v2/Core i7
+\item Deux noeuds NUMA~:
+  \begin{itemize}
+  \item cache L3 15 MB
+  \item 6 coeurs physiques avec hyperthreading~:
+    \begin{itemize}
+    \item cache L2 256 KB
+    \item L1d 32 KB
+    \item L1i 32 KB
+    \end{itemize}
+  \end{itemize}
+\end{itemize}
+On pourra retrouver la sortie de la commande \texttt{lstopo} en
+annexes (figure~\ref{fig:lstopo}).
+
 \subsection{Algorithmes séquentiels}
 
 \subsection{Algorithmes multi-threads}
