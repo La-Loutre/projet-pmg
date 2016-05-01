@@ -81,15 +81,15 @@ traitement qu'il faille ébouler une case ou non. Ainsi, nous pouvons
 \subsubsection{Autres approches}
 
 Nous avons essayé d'autres approches comme la détection des zones
-stables, \texttt{compute\_\-eucl\_\-chunk}, ou l'utilisation
+stables (\texttt{compute\_\-eucl\_\-chunk}), ou l'utilisation
 d'opérations vectorielles pour tenter de traiter plusieurs cases d'un
-seul coup, \texttt{compute\_\-eucl\_\-vector}.
+seul coup (\texttt{compute\_\-eucl\_\-vector}).
 \medskip
 
 Pour \texttt{compute\_\-eucl\_\-vector} nous avons utilisé les
 instruction SIMD (SSE2) pour effectuer 4 calcul de case à la
 fois. Pour cela nous avons rempli un registre de 128 bits avec nos 4
-cases (sur une meme ligne donc continue en mémoire, virtuelle tout du
+cases (sur une même ligne donc continue en mémoire, virtuelle tout du
 moins).
 
 Ensuite pour diviser par 4 nous avons déplacer notre registre de 2
@@ -99,16 +99,11 @@ se retrouveraient sur la mauvaise case.
 
 Enfin pour obtenir le résultat du modulo, nous appliquons un masque
 128 bits {3,3,3,3} sur notre registre de départ.
-
-Au final nous n'avons pas obtenus les performances espérée puisque la
-gestion des différents registres prend plus de temps que d'effectuer 4
-calculs. Cependant peut-être qu'avec des registre de 512 bits (AVX)
-nous aurions obtenus de meilleurs résultats.
 \medskip
 
 Le principe de la séparation en chunk à été implémenté. Il s'agit
 de détecter les zones stables pour ne pas avoir à les refaire tant
-que les zones autours ne débordent pas sur elle.
+que les zones autour ne débordent pas sur elle.
 
 \subsection{Algorithmes multi-threads}
 
@@ -118,7 +113,7 @@ Une première solution multi-threads a été réalisée à l'aide
 d'OpenMP. Il s'agit de la méthode \texttt{compute\_omp}.
 \medskip
 
-Nous avons déjà vu section~\ref{sec:cache} que pacourir la matrice
+Nous avons déjà vu section~\ref{sec:cache} que parcourir la matrice
 ligne par ligne est la façon qui permet d'utiliser au mieux le cache.4
 
 Pour la plupart de nos solutions multi-threads, nous répartissons le
@@ -131,7 +126,7 @@ peut noter que ce nombre est au moins multiple de 2, chaque thread
 traite donc successivement 2 lignes (\texttt{schedule(static,
   \-chunk)}).
 
-Les autres politiques d'ordonnacement des threads ne sont pas
+Les autres politiques d'ordonnancement des threads ne sont pas
 intéressantes ici car les threads font en théorie tous la même
 quantité de calcul.
 
@@ -290,3 +285,5 @@ Cela n'est clairement pas efficace puisque le CPU est obligé d'aller
 lire en mémoire GPU à chaque itération. Pour avoir de meilleur
 performance il aurait fallu faire $p$-itération dans le GPU avant de
 vérifier niveau CPU.
+
+Cela explique en partie les mauvais résultats obtenus (voir section~\ref{sec:res-opencl}).
