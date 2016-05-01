@@ -18,7 +18,8 @@ la salle 203 décrite ci-après~:
 \end{itemize}
 On pourra retrouver la sortie de la commande \texttt{lstopo} en
 annexes (figure~\ref{fig:lstopo}). Nous exécutons chaque méthode 5
-fois puis nous faisons une moyenne des 5 mesures de temps.
+fois puis nous faisons une moyenne des 5 mesures de temps. L'unité des
+mesures de temps est toujours le milliseconde.
 
 \subsection{Comparaison des algorithmes séquentiels}
 
@@ -104,6 +105,10 @@ fonctionnelle. Les résultats sont correctes mais aucun gain de temps
 n'est à relever.
 
 \subsection{Algorithmes multi-threads}
+
+Pour le calcul du speed-up, nous prenons toujours comme temps de référence le
+meilleur temps séquentiel pour le cas de figure étudié.
+\bigskip
 
 Sur les figures~\ref{fig:homopar128}, \ref{fig:homopar512},
 \ref{fig:tourpar128}, et \ref{fig:tourpar512} on peut voir que la
