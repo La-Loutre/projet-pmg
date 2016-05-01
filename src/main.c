@@ -372,7 +372,143 @@ static inline int compute_omp (sand_t sand)
   return change;
 }
 
+static iterations = 10;
+static inline int compute_omp_iter_v2 (sand_t sand)
+{
+  int iter_target = iterations;
+  int change = 0;
+  int nthreads = omp_get_max_threads();
+  int chunk = (DIM-2)/nthreads+ ((DIM-2)%nthreads!=0?1:0);//compute_chunk(nthreads);
+  #pragma omp parallel
+  {
 
+    int myid = omp_get_thread_num();
+    int mychange = 0;
+    sand_t read_buffer = create_sand_array(DIM);
+    sand_t write_buffer = create_sand_array(DIM);
+    unsigned **swap[2] = {read_buffer,write_buffer};
+    int read = 0;
+    int write = 1;
+    unsigned **read_from = swap[read];
+    unsigned **write_to = swap[write];
+
+    do{
+      int ysave = 0;
+      int my_iter_target = iter_target;
+#pragma omp barrier
+#pragma omp single // barrier
+      change = 0;
+
+
+#pragma omp for schedule(static, chunk) reduction(|:change)
+      /*
+	Each thread calculate its chunk
+	for 1 iteration.
+	For first iteration we read from sand.
+      */
+      for (int y = 1; y < DIM-1; y++) {
+	if (!ysave)
+	    ysave = y;
+	for (int x = 1; x < DIM-1; x++) {
+	  int  val = sand[y][x];
+	  change = change | (val /4 );
+	  val %= 4;
+	  val += sand[y-1][x] / 4
+	    + sand[y+1][x] / 4
+	    + sand[y][x-1] / 4
+	    + sand[y][x+1] / 4;
+	  write_to[y][x] = val;
+	}
+      }
+      //Now we have to calculate more lines
+      int nb_iter;
+      for (nb_iter =0;nb_iter < iter_target-1;++nb_iter){
+      	if (nb_iter == 0)
+      	  read_from=sand;
+      	else{
+      	  read = 1 - read;
+      	  write = 1 - write;
+      	  read_from=swap[read];
+      	  write_to=swap[write];
+      	}
+	//	print_matrix(read_from,DIM);
+	//	print_matrix(write_to,DIM);
+      	for (int i = 1 ; i < my_iter_target;++i)
+      	    {
+      	      int Y = ysave-i;
+      	      //ieme upper line
+      	      if (Y >= 1)
+      		{
+		  // for(;Y < ysave;++Y)
+		    for (int X = 1; X < DIM-1; X++) {
+
+      		    int  val = read_from[Y][X];
+      		    //change = change | (val /4 );
+      		    val %= 4;
+      		    val += read_from[Y-1][X] / 4
+      		      + read_from[Y+1][X] / 4
+      		      + read_from[Y][X-1] / 4
+      		      + read_from[Y][X+1] / 4;
+      		    write_to[Y][X] = val;
+
+      		  }
+
+      		}
+      	      Y = ysave+chunk+i;
+      	      //ieme bottom line
+      	      if (Y < DIM-1)
+      		{
+		  //	  for(;Y > ysave;--Y)
+      		  for (int X = 1; X < DIM-1; X++) {
+
+      		    int  val = read_from[Y][X];
+		    //  change = change | (val /4 );
+      		    val %= 4;
+      		    val += read_from[Y-1][X] / 4
+      		      + read_from[Y+1][X] / 4
+      		      + read_from[Y][X-1] / 4
+      		      + read_from[Y][X+1] / 4;
+      		    write_to[Y][X] = val;
+
+      		  }
+
+      		}
+      	    }
+
+      	my_iter_target -=1;
+      }
+
+      for (int y = ysave; y < chunk+ysave && y < DIM-1; y++) {
+      	for (int x = 1; x < DIM-1; x++) {
+	  int val;
+	  //if (nb_iter %2 == 0)
+	  //val = write_to[y][x];
+	  //else
+	  val = write_to[y][x];
+      	  sand[y][x] = val;
+      	}
+      }
+      /* if (nb_iter % 2 ==0) */
+      /* 	{ */
+      /* 	  read = 1 - read; */
+      /* 	  write = 1 - write; */
+      /* 	  read_from=swap[read]; */
+      /* 	  write_to=swap[write]; */
+      /* 	} */
+      /* if (myid == 0){ */
+      /* 	printf("RESULT\n"); */
+      /* 	print_matrix(sand,DIM); */
+      /* } */
+      /* } */
+
+      /* printf("\n"); */
+
+
+    }while(change);
+
+  }
+  //  print_matrix(sand,DIM);
+}
 static inline int compute_omp_iter (sand_t sand)
 {
   int iter = 1;
@@ -635,6 +771,7 @@ static inline int compute_omp_swap_tile (sand_t sand)
 
 static inline int compute_omp_swap_nowait (sand_t sand)
 {
+
   int nthreads = omp_get_max_threads();
   sand_t aux = create_sand_array(DIM);
 
@@ -767,8 +904,10 @@ static inline int compute_omp_swap_nowait (sand_t sand)
 
 int main (int argc, char **argv)
 {
+
   // omp_set_nested(1);
   //   omp_set_num_threads(4);
+
 
   printf("BINDING %d ", omp_get_proc_bind());
   printf("DIM %d CASE %d\n", DIM, CASE);
@@ -861,9 +1000,14 @@ int main (int argc, char **argv)
     /* process ("PAR OMP SWAP NOWAIT", */
     /* 	     ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
-    /* process ("PAR OMP ITER", */
-    /* 	     ref, sand, compute_omp_iter, ref_time, false, repeat); */
+    /* process ("PAR OMP SWAP NOWAIT", */
+    /* 	     ref, sand, compute_omp_swap_nowait, ref_time, false, repeat); */
 
+    for (int i = 2; i < 16; i+=2) {
+      iterations = i;
+      process ("PAR OMP ITER",
+	       ref, sand, compute_omp_iter_v2, ref_time, false, repeat);
+    }
   }
   sand_init(sand);
   start(ref, sand, ref_time, false, true);
