@@ -78,11 +78,31 @@ traitement qu'il faille ébouler une case ou non. Ainsi, nous pouvons
 éviter les prédictions de branchement incorrects.
 \bigskip
 
+\subsubsection{Autres approches}
 Nous avons essayé d'autres approches comme la détection des zones
 stables, \texttt{compute\_\-eucl\_\-chunk}, ou l'utilisation
 d'opérations vectorielles pour tenter de traiter plusieurs cases d'un
 seul coup, \texttt{compute\_\-eucl\_\-vector}.
 \medskip
+
+Pour vector nous avons utilisés les instruction SIMD (SSE2) pour
+effectuer 4 calcul de case à la fois. Pour cela nous avons remplis un
+registre de 128bits avec nos 4 cases (sur une meme ligne donc continue
+en mémoire virtuelle tout du moins). Ensuite pour divisé par 4 nous
+avons déplacer notre registre de 2 bits vers la droite puis nous avons
+appliquer un masque 128 bits (11000...11000...110000..11000...) pour
+effacer les bits qui se retrouverai sur la mauvaise case.
+Enfin pour obtenir le résultat du modulo nous appliquons un masque
+128bits {3,3,3,3} sur notre registre de départ.
+Au final nous n'avons pas obtenus les performances espérer puisque
+la gestion des différents registre prend plus de temps que d'effectuer
+4 calculs. Cependant peut être qu'avec des registre de 512bits (AVX)
+nous aurions obtenus de meilleurs résultats voir un speed-up > 1.
+\medskip
+
+Le principe de la séparation en chunk à été implémenté. Il s'agit
+de détecter les zones stables pour ne pas avoir à les refaire tant
+que les zones autours ne débordent pas sur elle.
 
 \subsection{Algorithmes multi-threads}
 
