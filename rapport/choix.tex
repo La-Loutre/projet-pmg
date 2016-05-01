@@ -4,13 +4,17 @@
 
 Un premier algorithme naïf a été écrit. Il s'agit d'une simple double
 boucles qui, pour chaque case, fait écrouler le tas de sable sur les
-quatres cases voisines.  Nous utilisons cette algorithme comme
+quatre cases voisines.  Nous utilisons cette algorithme comme
 référence pour vérifier que les algorithmes optimisés ou parallèles
 donnent des résultats corrects. Il s'agit de la méthode
-\texttt{compute\_naive} (algorithme~\ref{algo:naif}).
+\texttt{compute\_naïve} (algorithme~\ref{algo:naif}).
 \medskip
 
-% TODO: comment cest alloc memoire
+\subsection{Stockage en mémoire}
+
+Nous allouons un tableau de taille $DIM*DIM$ et pour nous y faciliter les
+accès, on alloue un deuxième tableau de taille $DIM$ dont chaque case
+pointe sur une ligne différente (de taille $DIM$) du premier tableau.
 
 \subsection{Algorithmes séquentiels}
 
@@ -28,7 +32,7 @@ Il s'agit de la méthode \texttt{compute\_eucl} (algorithme~).
 \subsubsection{Prédiction de branchement}
 
 Une autre optimisation consiste à mieux utiliser la prédiction de
-branchement du processeur.  À chaque itération et pour chaque case, on
+branchement du processeur. À chaque itération et pour chaque case, on
 vérifie si la case dépasse une certaine valeur (la taille maximale
 d'un tas de sable avant éboulement). Or, comme d'une case à l'autre le
 contenu peut être radicalement différent, on peut peut pas
@@ -37,16 +41,17 @@ statistiquement prédire si nous allons effectuer un changement (un
 efficace ici.
 \medskip
 
-Il faudrait alors effectuer toujours les mêmes opérations, qu'il y ait
-un changement ou non. En réalité, cela est compliqué.
-% TODO: ici c'est pas parfait ya un vieux switch
+Il faut alors effectuer toujours les mêmes opérations, qu'il y ait
+un changement ou non.
 \medskip
+
+% 5 à 7 fois plus vite en seq, 2 fois plus vite en para
 
 \subsubsection{Diminuer les accès en écriture}
 
 Une autre approche que l'éboulement du tas de sable sur les cases
 voisines consistes à consulter le hauteur du tas de chacun de des
-voisins d'une case. En fonction de ces quatres hauteurs, on met à jour
+voisins d'une case. En fonction de ces quatre hauteurs, on met à jour
 la valeur de la case, en faisant écrouler les tas de sables voisins
 sur la case, mais sans modifier le contenu des cases voisines. Avec
 cette approche, à chaque itération et pour chaque case, on effectue 5
@@ -55,7 +60,7 @@ pour l'autre approche. Il s'agit de la méthode
 \texttt{compute\_eucl\_swap} (algorithme~TODO).
 \medskip
 
-L'incovenient de cette approche est qu'on ne peut pas lire et écrire
+L'inconvénient de cette approche est qu'on ne peut pas lire et écrire
 dans la même matrice sinon les résultats seraient faux. Ainsi, on
 dispose d'une matrice d'écriture et d'une matrice de lecture. Pendant
 qu'on lit la matrice de lecture, on écrit sur une matrice
@@ -64,9 +69,9 @@ lecture et d'écriture.
 \medskip
 
 Nous pouvons avec cette méthode facilement effectuer le même
-traitement qu'il faille ébouler une case ou non.
+traitement qu'il faille ébouler une case ou non. Ainsi, nous pouvons
+éviter les prédictions de branchement incorrects.
 \bigskip
-\medskip
 
 Nous avons essayé d'autres approches comme la détection des zones
 stables, \texttt{compute\_\-eucl\_\-chunk}, ou l'utilisation
@@ -140,7 +145,7 @@ figure~\ref{fig:nowait}.
   }
   \caption{Utilisation de sémaphore pour retirer les barrières de
     synchronisation à chaque étape. L'exemple montre 3 threads qui
-    effectuent 4 itérations de l'algortihme. Chaque thread traite
+    effectuent 4 itérations de l'algorithme. Chaque thread traite
     $chunk$ lignes de la matrice. Après chaque itération, on échange
     la matrice de lecture et d'écriture.}
   \label{fig:nowait}
@@ -175,9 +180,12 @@ qu'on était endormis. Si c'est le cas, on recommence le processus
 depuis le départ. Sinon, l'algorithme se termine.
 \medskip
 
-Pour éviter les interblocages, il faut aussi veiller à ne pas
+Pour éviter les inter-blocages, il faut aussi veiller à ne pas
 s'endormir sur la sémaphore du thread voisin si celui-ci a stabilisé
 son morceau de matrice et qu'il est endormi ou s'apprête à s'endormir.
 \medskip
 
 \subsubsection{Version OpenCL}
+
+%%  LocalWords:  TODO chunk vector d'OpenMP omp nthreads p-itération
+%%  LocalWords:  nowait OpenCL
