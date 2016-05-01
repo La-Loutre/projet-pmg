@@ -138,7 +138,7 @@ unsigned long process(char *name,
     compute_time += TIME_DIFF(t1, t2);
   }
   compute_time /= repeat;
-  timeandcheck(name, ref_time, compute_time, ref, sand, check_matrix);
+  timeandcheck(name, ref_time, compute_time, ref, sand, (check_func_type)check_matrix);
   return compute_time;
 }
 
