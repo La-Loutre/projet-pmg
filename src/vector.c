@@ -69,17 +69,12 @@ static void check_output_data(char *name,
     int cpt = 0;
     for(int i = 1; i < DIM-1; i++) {
       for(int j = 1; j < DIM-1; j++) {
-	//printf("[%d]",sand[j+i*DIM],j+i*DIM);
 	if (reff[i*DIM+j] != sand[i*DIM+j]){
-	  //printf("%d!=%d case %d:%d\n\n",reff[i*DIM+j],sand[i*DIM+j],i,j);
 	     cpt++;
 	}
       }
 
-      // printf("\n");
     }
-    //printf("REF\n%d",reff[5][0]);
-    //print_matrix(ref,DIM);
     return cpt;
 }
   timeandcheck("OPENCL", ref_time, compute_time, &ref[0][0], output_data,
@@ -138,7 +133,7 @@ static void send_reset_changed(cl_command_queue queue)
   err = clEnqueueWriteBuffer(queue, changed_buffer, CL_TRUE, 0,
 			     sizeof(unsigned) , changed_data_reset, 0, NULL, NULL);
   check(err, "Failed to write to changed_reset");
-  //  assert(is_done(queue));
+
 }
 void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool gpu)
 {
@@ -161,7 +156,6 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
   err = clGetPlatformIDs(3, pf, &nb_platforms);
   check(err, "Failed to get platform IDs");
 
-  //printf("%d OpenCL platforms detected\n", nb_platforms);
 
   // For each platform do
   for (cl_int p = 0; p < nb_platforms; p++) {
@@ -180,11 +174,10 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
     err = clGetPlatformInfo(pf[p], CL_PLATFORM_VENDOR, 1024, vendor, NULL);
     check(err, "Failed to get Platform Info");
 
-    //printf("Platform %d: %s - %s\n", p, name, vendor);
 
     // Get list of devices
     err = clGetDeviceIDs(pf[p], device_type, MAX_DEVICES, devices, &nb_devices);
-    //printf("nb devices = %d\n", nb_devices);
+
 
     if(nb_devices == 0)
       continue;
@@ -247,8 +240,6 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       err = clGetDeviceInfo(devices[dev], CL_DEVICE_TYPE, sizeof(cl_device_type), &dtype, NULL);
       check(err, "Cannot get type of device");
 
-      //printf("\tDevice %d : %s [%s]\n", dev, (dtype == CL_DEVICE_TYPE_GPU) ? "GPU" : "CPU", name);
-
       // Create a command queue
       queue = clCreateCommandQueue(context, devices[dev], CL_QUEUE_PROFILING_ENABLE, &err);
       check(err,"Failed to create command queue");
@@ -269,7 +260,6 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	// local domain size for our calculation
 	size_t local[2]  = { TILE , TILE};
 
-	//printf("\t%dx%d Threads in workgroups of %dx%d\n", global[0],global[1], local[0],local[1]);
 
 	// Set kernel arguments
 	err = 0;
@@ -312,10 +302,6 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       gettimeofday (&t2,NULL);
       // Check performance
       time= (double)TIME_DIFF(t1, t2);
-
-      /* printf("\tComputation performed in %lf s over device #%d\n", */
-      /* 	     time, */
-      /* 	     dev); */
 
       // Validate computation
       check_output_data((dtype == CL_DEVICE_TYPE_GPU) ? "OPENCL GPU" : "OPENCL CPU", ref_time,time);
