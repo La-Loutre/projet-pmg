@@ -67,7 +67,7 @@ static inline int compute_eucl_swap (sand_t sand)
     read_from = swap[read];
     write_to = swap[write];
   } while(change);
-  //  print_matrix(sand,DIM);
+
   free(*aux);
   free(aux);
   return change;
@@ -123,7 +123,7 @@ static inline int compute_eucl_chunk (sand_t sand)
 	}
       }
 
-    //    start=0;
+
   }
   read = 1 - read;
   write = 1 - write;
@@ -132,7 +132,6 @@ static inline int compute_eucl_chunk (sand_t sand)
   }while(change);
   free(*aux);
   free(aux);
-  //  print_matrix(sand,DIM);
   return change;
 }
 
@@ -195,10 +194,10 @@ static inline int compute_eucl_vector (sand_t sand)
   int shift[4] = {2,0,0,0}; //bit inversion
   int shift2[4] = {32,0,0,0};
   int TESTT[4];
-  simd_shift = _mm_loadu_si128(&shift);
-  simd_shift2 = _mm_loadu_si128(&shift2);
-  simd_div_mask = _mm_loadu_si128(&value_div_mask[0]);
-  simd_mod_mask = _mm_loadu_si128(&value_mod_mask[0]);
+  simd_shift = _mm_loadu_si128((__m128i*)&shift);
+  simd_shift2 = _mm_loadu_si128((__m128i*)&shift2);
+  simd_div_mask = _mm_loadu_si128((__m128i*)&value_div_mask[0]);
+  simd_mod_mask = _mm_loadu_si128((__m128i*)&value_mod_mask[0]);
 
   while(change){
     change = 0;
@@ -225,7 +224,7 @@ static inline int compute_eucl_vector (sand_t sand)
 	 * div4=sand[y][x] >> 2; for 4 elements
 	 */
 	//Copy 4 element into 128b vector (integer)
-	raw_value_simd = _mm_loadu_si128(&sand[y][x]);
+	raw_value_simd = _mm_loadu_si128((__m128i*)&sand[y][x]);
 	//Shift right 2 bits for each .
 	// 1 * 8 = 2*4
 	div4_simd = _mm_srl_epi32(raw_value_simd,simd_shift);
@@ -249,8 +248,8 @@ static inline int compute_eucl_vector (sand_t sand)
 	 * sand[y-1][x] += div4;
 	 * sand[y+1][x] += div4;
 	 */
-	previousline_simd = _mm_loadu_si128(&sand[y-1][x]);
-	nextline_simd = _mm_loadu_si128(&sand[y+1][x]);
+	previousline_simd = _mm_loadu_si128((__m128i*)&sand[y-1][x]);
+	nextline_simd = _mm_loadu_si128((__m128i*)&sand[y+1][x]);
 	previousline_simd = _mm_add_epi32(previousline_simd,
 					  div4_simd);
 	nextline_simd = _mm_add_epi32(nextline_simd,
@@ -266,12 +265,12 @@ static inline int compute_eucl_vector (sand_t sand)
 	 * register to memory
 	 */
 	//Store back previous line
-	_mm_storeu_si128(&sand[y-1][x],previousline_simd);
+	_mm_storeu_si128((__m128i*)&sand[y-1][x],previousline_simd);
 	//Store back next line
-	_mm_storeu_si128(&sand[y+1][x],nextline_simd);
+	_mm_storeu_si128((__m128i*)&sand[y+1][x],nextline_simd);
 
-	_mm_storeu_si128(&sand[y][x],new_value_simd);
-	_mm_storeu_si128(&TESTT,div4_simd);
+	_mm_storeu_si128((__m128i*)&sand[y][x],new_value_simd);
+	_mm_storeu_si128((__m128i*)&TESTT,div4_simd);
 
 	sand[y][x-1] += TESTT[0];
 	sand[y][x+4] += TESTT[3];
@@ -387,7 +386,7 @@ static inline int compute_omp_iter_v2 (sand_t sand)
   int iter_target = iterations;
   int change = 0;
   int nthreads = omp_get_max_threads();
-  int chunk = (DIM-2)/nthreads+ ((DIM-2)%nthreads!=0?1:0);//compute_chunk(nthreads);
+  int chunk = (DIM-2)/nthreads+ ((DIM-2)%nthreads!=0?1:0);
   #pragma omp parallel
   {
 
@@ -440,8 +439,7 @@ static inline int compute_omp_iter_v2 (sand_t sand)
       	  read_from=swap[read];
       	  write_to=swap[write];
       	}
-	//	print_matrix(read_from,DIM);
-	//	print_matrix(write_to,DIM);
+
       	for (int i = 1 ; i < my_iter_target;++i)
       	    {
       	      int Y = ysave-i;
@@ -467,11 +465,9 @@ static inline int compute_omp_iter_v2 (sand_t sand)
       	      //ieme bottom line
       	      if (Y < DIM-1)
       		{
-		  //	  for(;Y > ysave;--Y)
       		  for (int X = 1; X < DIM-1; X++) {
 
       		    int  val = read_from[Y][X];
-		    //  change = change | (val /4 );
       		    val %= 4;
       		    val += read_from[Y-1][X] / 4
       		      + read_from[Y+1][X] / 4
@@ -490,9 +486,6 @@ static inline int compute_omp_iter_v2 (sand_t sand)
       for (int y = ysave; y < chunk+ysave && y < DIM-1; y++) {
       	for (int x = 1; x < DIM-1; x++) {
 	  int val;
-	  //if (nb_iter %2 == 0)
-	  //val = write_to[y][x];
-	  //else
 	  val = write_to[y][x];
       	  sand[y][x] = val;
       	}
@@ -516,7 +509,7 @@ static inline int compute_omp_iter_v2 (sand_t sand)
     }while(change);
 
   }
-  //  print_matrix(sand,DIM);
+
 }
 static inline int compute_omp_iter (sand_t sand)
 {
