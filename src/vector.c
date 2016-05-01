@@ -69,16 +69,16 @@ static void check_output_data(char *name,
     int cpt = 0;
     for(int i = 1; i < DIM-1; i++) {
       for(int j = 1; j < DIM-1; j++) {
-	//	printf("[%d]",sand[j+i*DIM],j+i*DIM);
+	//printf("[%d]",sand[j+i*DIM],j+i*DIM);
 	if (reff[i*DIM+j] != sand[i*DIM+j]){
-	  // printf("%d!=%d case %d:%d\n\n",reff[i*DIM+j],sand[i*DIM+j],i,j);
+	  //printf("%d!=%d case %d:%d\n\n",reff[i*DIM+j],sand[i*DIM+j],i,j);
 	     cpt++;
 	}
       }
-      //      printf("\n");
+      // printf("\n");
     }
     //printf("REF\n%d",reff[5][0]);
-    // print_matrix(ref,DIM);
+    //print_matrix(ref,DIM);
     return cpt;
 }
   timeandcheck("OPENCL", ref_time, compute_time, &ref[0][0], output_data,
@@ -256,7 +256,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
       send_input(queue);
       int xxx=0;
       struct timeval t1,t2;
-      	double timeInMilliseconds;
+      	double time;
       // Execute kernel
       {
 	cl_event prof_event;
@@ -280,7 +280,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 
 
 	gettimeofday (&t1, NULL);
-	int iter = 1000;
+	int iter = 1;
 	do{
 	  err  = clSetKernelArg(kernel, xxx, sizeof(cl_mem), &input_buffer);
 	  err |= clSetKernelArg(kernel, (xxx+1)%2, sizeof(cl_mem), &output_buffer);
@@ -296,8 +296,7 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 	xxx= (xxx+1)%2;
 
 	//	iter +=1;
-	}while(!(is_done(queue)));// && --iter > -4);
-	printf("NB ITER = %d",iter);
+	}while(!(is_done(queue)) );// && --iter > -4);
 
 
 
@@ -311,14 +310,14 @@ void start(sand_t inref, sand_t insand, unsigned long ref_time, bool cpu, bool g
 
       gettimeofday (&t2,NULL);
       // Check performance
-      timeInMilliseconds = (double)TIME_DIFF(t1, t2)/1000;
+      time= (double)TIME_DIFF(t1, t2);
 
-      printf("\tComputation performed in %lf ms over device #%d\n",
-	     timeInMilliseconds,
-	     dev);
+      /* printf("\tComputation performed in %lf s over device #%d\n", */
+      /* 	     time, */
+      /* 	     dev); */
 
       // Validate computation
-      check_output_data((dtype == CL_DEVICE_TYPE_GPU) ? "OPENCL GPU" : "OPENCL CPU", ref_time, timeInMilliseconds);
+      check_output_data((dtype == CL_DEVICE_TYPE_GPU) ? "OPENCL GPU" : "OPENCL CPU", ref_time,time);
 
 
 
