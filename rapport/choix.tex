@@ -239,5 +239,17 @@ son morceau de matrice et qu'il est endormi ou s'apprête à s'endormir.
 \medskip
 
 \subsection{Version OpenCL}
+Pour la version OpenCL nous avons choisi de diviser le problème en
+workgroup de 16x16. A chaque itération on regarde côté CPU une case
+mémoire GPU à 1 si il y a eu un changement. Si c'est le cas on inverse
+(comme pour les versions swap CPU) le tableau de lecture du tableau
+d'écriture (uniquement les pointeurs) puis on lance l'itération
+suivante. Ca n'est clairement pas efficace puisque le CPU est obligé
+d' aller lire en mémoire GPU à chaque itération. Pour avoir de
+meilleur performance il aurait fallut faire p-itération dans le GPU
+avant de vérifier niveau CPU.
+
+
+
 
 % TODO:
