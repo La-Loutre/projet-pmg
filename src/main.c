@@ -595,7 +595,7 @@ static inline int compute_omp_swap (sand_t sand)
 #pragma omp single // barrier
       change = 0;
 
-#pragma omp for schedule(static, chunk) reduction(|:change)
+#pragma omp for schedule(static) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = read_from[y][x];
