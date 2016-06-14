@@ -595,7 +595,7 @@ static inline int compute_omp_swap (sand_t sand)
 #pragma omp single // barrier
       change = 0;
 
-#pragma omp for schedule(static, chunk) reduction(|:change)
+#pragma omp for schedule(static) reduction(|:change)
       for (int y = 1; y < DIM-1; y++) {
 	for (int x = 1; x < DIM-1; x++) {
 	  int val = read_from[y][x];
@@ -867,20 +867,23 @@ int main (int argc, char **argv)
 
   // NOTE: We use the previous best compute time for reference
 
-  ref_time = process("SEQ REF",
-  		     ref, ref, compute_naive, ref_time, true, repeat);
-
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL",
-  			   ref, sand, compute_eucl, ref_time, true, repeat));
-
-  ref_time = fmin(ref_time,
-  		  process ("SEQ EUCL SWAP",
-  			   ref, sand, compute_eucl_swap, ref_time,
-  			   true, repeat));
+  /* ref_time = process("SEQ REF", */
+  /* 		     ref, ref, compute_naive, ref_time, true, repeat); */
 
   /* ref_time = fmin(ref_time, */
-  /* 		  process ("SEQ EUCL CHUNK", */
+  /* 		  process ("SEQ EUCL", */
+  /* 			   ref, sand, compute_eucl, ref_time, true, repeat)); */
+
+  /* ref_time = fmin(ref_time, */
+  /* 		  process ("SEQ EUCL SWAP", */
+  /* 			   ref, sand, compute_eucl_swap, ref_time, */
+  /* 			   true, repeat)); */
+
+  ref_time = process ("SEQ EUCL SWAP", ref, ref, compute_eucl_swap, ref_time,
+		      true, repeat);
+
+  /* ref_time = fmin(ref_time,
+     /* 		  process ("SEQ EUCL CHUNK", */
   /* 			   ref, sand, compute_eucl_chunk, ref_time, */
   /* 			   false, repeat)); */
 
@@ -897,8 +900,8 @@ int main (int argc, char **argv)
 
     printf("NTHREADS %d\n", omp_get_max_threads());
 
-    process ("PAR OMP",
-    	     ref, sand, compute_omp, ref_time, false, repeat);
+    /* process ("PAR OMP", */
+    /* 	     ref, sand, compute_omp, ref_time, false, repeat); */
 
     /* process ("PAR OMP TILE", */
     /* 	     ref, sand, compute_omp_tile, ref_time, false, repeat); */
@@ -918,9 +921,9 @@ int main (int argc, char **argv)
 
   }
 
-  sand_init(sand);
-  // OPENCL GPU
-  start(ref, sand, ref_time, false, true);
+  /* sand_init(sand); */
+  /* // OPENCL GPU */
+  /* start(ref, sand, ref_time, false, true); */
   puts("\n");
   return 0;
 #endif // METHOD TEST
